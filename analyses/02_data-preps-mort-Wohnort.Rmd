@@ -1,0 +1,338 @@
+---
+title: "Excess mortality & voting patterns in CH"
+subtitle: "Mortality data preparation (*Wohnort* based)"
+pagetitle: "Excess & voting: mortality data"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(tidyverse, magrittr, 
+       janitor, scales, lubridate, 
+       DT, skimr)
+
+import::from("sjmisc", "frq")
+
+renv::restore()
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Mortality data 2015-2021
+
+## Source 
+
+Custom file delivered by BfS covering 2021 period and standardizing municipalities to Jul 2021.  
+
+Using **Wohnort** (*the municipality where the person lived*) as unit of analysis.   
+
+```{r}
+w_deaths_2015_2021 <- read_csv("data-raw/BfS-closed/monthly_deaths/13OCT21_Lieferung_Panczak_Wohnort.zip", 
+                               col_types = cols(year = col_integer(), 
+                                                month = col_integer(), 
+                                                COUNT = col_integer()),
+                               locale = readr::locale(encoding = "latin1")) %>% 
+  mutate(sex = if_else(sex == "F", "Female", "Male")) %>% 
+  select(-canton, -community, -nationality) %>% 
+  rename(GMDNAME = wohnort,
+         canton = wohnkanton) %>% 
+  # hyphen in name >> doesnt link to spatial data
+  mutate(GMDNAME = if_else(GMDNAME == "La Grande-Béroche", "La Grande Béroche", GMDNAME)) %>% 
+  # name change? >> resolved with Cordula
+  mutate(GMDNAME = if_else(GMDNAME == "Klosters-Serneus", "Klosters", GMDNAME)) 
+```
+
+## Municipality updates 
+
+To reach the state of `2022-01-01`.  
+
+```{r}
+w_deaths_2015_2021 %<>% 
+  # Zurzach merge
+  mutate(GMDNAME = if_else(GMDNAME == "Bad Zurzach", "Zurzach", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Baldingen", "Zurzach", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Böbikon", "Zurzach", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Kaiserstuhl", "Zurzach", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Rekingen (AG)", "Zurzach", GMDNAME)) %>%
+  mutate(GMDNAME = if_else(GMDNAME == "Rietheim", "Zurzach", GMDNAME)) %>%
+  mutate(GMDNAME = if_else(GMDNAME == "Rümikon", "Zurzach", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Wislikofen", "Zurzach", GMDNAME)) %>% 
+  # Böztal merge
+  mutate(GMDNAME = if_else(GMDNAME == "Bözen", "Böztal", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Effingen", "Böztal", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Elfingen", "Böztal", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Hornussen", "Böztal", GMDNAME)) %>% 
+  # Blonay - Saint-Légier merge
+  mutate(GMDNAME = if_else(GMDNAME == "Blonay", "Blonay - Saint-Légier", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Saint-Légier-La Chiésaz", "Blonay - Saint-Légier", GMDNAME)) %>% 
+  # Murten merge
+  mutate(GMDNAME = if_else(GMDNAME == "Galmiz", "Murten", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Gempenach", "Murten", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME)) %>% 
+  # Essertes merge
+  mutate(GMDNAME = if_else(GMDNAME == "Essertes", "Oron", GMDNAME))
+```
+
+## Aggregation
+
+```{r}
+w_deaths_2015_2021 %<>% 
+  group_by(year, month, canton, GMDNAME, agegroup, sex) %>% 
+  summarise(deaths = sum(COUNT)) %>% 
+  ungroup()
+```
+
+## Description of data  
+
+```{r echo=FALSE}
+report::report(w_deaths_2015_2021)
+```
+
+```{r echo=FALSE}
+skim(w_deaths_2015_2021)
+```
+
+```{r eval=FALSE, include=FALSE}
+# Deaths across variables:  
+w_deaths_2015_2021 %>%
+  mutate(month = factor(month)) %>% 
+  uncount(deaths) %>% 
+  select(-GMDNAME, -canton) %>% 
+  gtsummary::tbl_summary(by = year)
+```
+
+```{r eval=FALSE, include=FALSE}
+# Canton x year distribution:  
+w_deaths_2015_2021 %>%
+  uncount(deaths) %>% 
+  select(year, canton) %>% 
+  gtsummary::tbl_summary(by = year)
+```
+
+`r number(sum(w_deaths_2015_2021$deaths), big.mark = ",")` deaths by year:  
+
+```{r echo=FALSE}
+w_deaths_2015_2021 %>%
+  group_by(year) %>% 
+  summarise(Deaths = sum(deaths)) %>% 
+  datatable(options = list(dom = "t"))
+```
+
+## Codes of geographical areas
+
+```{r include=FALSE}
+raum <- read_rds("data/BfS/raum.Rds")
+```
+
+```{r include=FALSE}
+# Codes with no link - has to be empty 
+
+no_link <- w_deaths_2015_2021 %>% 
+  select(GMDNAME) %>% 
+  distinct()  %>% 
+  anti_join(raum)
+
+stopifnot(nrow(no_link) == 0)
+
+rm(no_link)
+```
+
+There were `r number(nrow(raum), big.mark = ",")` municipalities on the `2022-01-01` in CH.  
+
+```{r echo=FALSE}
+no_cases <- raum %>% 
+  anti_join(
+    w_deaths_2015_2021 %>% 
+      select(GMDNAME) %>% 
+      distinct() 
+  )
+```
+
+`r number(nrow(no_cases))` had no deaths recorded during the study period.   
+
+```{r echo=FALSE}
+no_cases %>% 
+  select(GMDNAME, KTNAME) %>% 
+  datatable(options = list(dom = "t")) 
+
+rm(no_cases)
+```
+
+## Age groups
+
+Original age groups:  
+
+```{r echo=FALSE}
+frq(w_deaths_2015_2021, agegroup)
+```
+
+Were simplified to `<40`, `40-59` , `60-69`, `70-79` & `80+`
+
+```{r}
+w_deaths_2015_2021 %<>% 
+  mutate(
+    age = case_when(
+      agegroup == "[0-10)" ~   "<40",
+      agegroup == "[10-20)" ~  "<40",
+      agegroup == "[20-30)" ~  "<40",
+      agegroup == "[30-40)" ~  "<40",
+      
+      agegroup == "[40-50)" ~  "40-49",
+      agegroup == "[50-60)" ~  "50-59",
+      agegroup == "[60-70)" ~  "60-69",
+      agegroup == "[70-80)" ~  "70-79",
+      
+      agegroup == "[80-90)" ~  "80+",
+      agegroup == "[90-116)" ~ "80+" ,
+      TRUE ~                    agegroup)
+  ) %>% 
+  select(-agegroup) %>% 
+  group_by(GMDNAME, year, month, canton, sex, age) %>% 
+  summarise(deaths = sum(deaths)) %>% 
+  ungroup()
+```
+
+```{r echo=FALSE}
+frq(w_deaths_2015_2021, age)
+```
+
+## Distribution of death counts
+
+Obviously highly skewed.  
+Note:  No zeroes here yet! No pop denominator either!  
+
+```{r echo=FALSE}
+w_deaths_2015_2021 %>% 
+  ggplot(aes(deaths)) + 
+  geom_histogram(binwidth = 1)
+```
+
+## Filling with zeroes
+
+All possible combinations of `year, month, canton, municipality, age & sex` are used and then empty strata are filled with zeroes.  
+
+This expansion also includes municipalities with zero deaths described above.  
+
+```{r}
+w_deaths_2015_2021_exp <- 
+  raum %>% 
+  select(GMDNAME) %>% 
+  distinct() %>% 
+  left_join(w_deaths_2015_2021) %>% 
+  select(-deaths, -canton) %>% 
+  # avoiding NAs
+  mutate(
+    year = if_else(is.na(year), as.integer(2015), year),
+    month = if_else(is.na(month), as.integer(1), month),
+    sex = if_else(is.na(sex), "Male", sex),
+    age = if_else(is.na(age), "<40", age)
+  ) %>% 
+  expand(GMDNAME, year, month, age, sex) %>%
+  left_join(w_deaths_2015_2021) %>% 
+  replace_na(list(deaths = 0)) %>% 
+  mutate(date = ymd(paste(year, month, "1", sep = " "))) %>% 
+  relocate(date, .after = month) %>% 
+  left_join(raum) %>% 
+  select(-canton) %>% 
+  relocate(GMDNR, .before = GMDNAME) %>% 
+  relocate(KTNAME, .after = GMDNAME) %>% 
+  arrange(GMDNR, year, month, age, sex) %>% 
+  filter( !(year == 2021 & month > 6))
+```
+
+That obviously increases the size of the dataset from `r number(nrow(w_deaths_2015_2021), big.mark = ",")` to `r number(nrow(w_deaths_2015_2021_exp), big.mark = ",")` (*ie.* 2,163 municipalities each with 2,016 data points * 7 years * 12 months * 6 age groups * 2 sexes).  
+
+Needless to say that creates large amount of zero cells:
+
+```{r echo=FALSE}
+frq(w_deaths_2015_2021_exp, deaths == 0)
+```
+
+Situation only marginally improves with exclusion of `<40` age group stratum:  
+
+```{r echo=FALSE}
+w_deaths_2015_2021_exp %>% 
+  filter(age != "<40") %>% 
+  frq(deaths == 0)
+```
+
+## Examples of time series
+
+### Municipalities Bern & Meienried:  
+
+```{r echo=FALSE}
+w_deaths_2015_2021_exp %>% 
+  filter(GMDNAME %in% c("Bern", "Meienried")) %>% 
+  group_by(GMDNAME, date) %>% 
+  summarise(deaths = sum(deaths)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = date, y = deaths, group = GMDNAME, color = GMDNAME)) + 
+  geom_line() + geom_point() +
+  theme_minimal()
+```
+
+## All time series
+
+```{r echo=FALSE}
+w_deaths_2015_2021_exp %>% 
+  group_by(GMDNAME, date) %>% 
+  summarise(deaths = sum(deaths)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = date, y = deaths, group = GMDNAME)) + 
+  geom_line(colour = "darkorchid", alpha = 0.25) +
+  theme_minimal()
+```
+
+```{r include=FALSE}
+# write_rds(w_deaths_2015_2021, "data/BfS-closed/monthly_deaths/w_deaths_2015_2021.Rds")
+write_rds(w_deaths_2015_2021_exp, "data/BfS-closed/monthly_deaths/w_deaths_2015_2021_exp.Rds")
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Groups for stratified modelling 
+
+```{r}
+groups = as_tibble(expand_grid(age = c("<40", "40-49", "50-59", 
+                                       "60-69", "70-79", "80+"),
+                               sex = c("Female", "Male")))
+```
+
+```{r include=FALSE}
+write_rds(groups, "data/groups.Rds")
+```
