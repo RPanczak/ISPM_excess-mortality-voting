@@ -24,3 +24,7 @@
 
 # R Environment Variables
 .Renviron
+
+# Project specific
+data-raw/BfS-closed
+data/BfS-closed
