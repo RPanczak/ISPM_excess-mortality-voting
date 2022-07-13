@@ -83,11 +83,13 @@ To reach the state of `2022-01-01`.
 
 ```{r}
 w_deaths_2015_2021 %<>% 
-  # Zurzach merge
+  # Essertes merge
+  mutate(GMDNAME = if_else(GMDNAME == "Essertes", "Oron", GMDNAME)) %>% 
+  # Zurzach
   mutate(GMDNAME = if_else(GMDNAME == "Bad Zurzach", "Zurzach", GMDNAME)) %>% 
   mutate(GMDNAME = if_else(GMDNAME == "Baldingen", "Zurzach", GMDNAME)) %>% 
   mutate(GMDNAME = if_else(GMDNAME == "Böbikon", "Zurzach", GMDNAME)) %>% 
-  mutate(GMDNAME = if_else(GMDNAME == "Kaiserstuhl", "Zurzach", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Kaiserstuhl", "Zurzach", GMDNAME)) %>%
   mutate(GMDNAME = if_else(GMDNAME == "Rekingen (AG)", "Zurzach", GMDNAME)) %>%
   mutate(GMDNAME = if_else(GMDNAME == "Rietheim", "Zurzach", GMDNAME)) %>%
   mutate(GMDNAME = if_else(GMDNAME == "Rümikon", "Zurzach", GMDNAME)) %>% 
@@ -103,9 +105,7 @@ w_deaths_2015_2021 %<>%
   # Murten merge
   mutate(GMDNAME = if_else(GMDNAME == "Galmiz", "Murten", GMDNAME)) %>% 
   mutate(GMDNAME = if_else(GMDNAME == "Gempenach", "Murten", GMDNAME)) %>% 
-  mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME)) %>% 
-  # Essertes merge
-  mutate(GMDNAME = if_else(GMDNAME == "Essertes", "Oron", GMDNAME))
+  mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME))
 ```
 
 ## Aggregation
@@ -150,7 +150,7 @@ w_deaths_2015_2021 %>%
 w_deaths_2015_2021 %>%
   group_by(year) %>% 
   summarise(Deaths = sum(deaths)) %>% 
-  datatable(options = list(dom = "t"))
+  mutate(Deaths = as.character(number(Deaths, big.mark = ","))) 
 ```
 
 ## Codes of geographical areas
@@ -188,7 +188,7 @@ no_cases <- raum %>%
 ```{r echo=FALSE}
 no_cases %>% 
   select(GMDNAME, KTNAME) %>% 
-  datatable(options = list(dom = "t")) 
+  arrange(GMDNAME)
 
 rm(no_cases)
 ```
@@ -234,7 +234,7 @@ frq(w_deaths_2015_2021, age)
 ## Distribution of death counts
 
 Obviously highly skewed.  
-Note:  No zeroes here yet! No pop denominator either!  
+**Note:** *No zeroes here yet! No pop denominator either!*  
 
 ```{r echo=FALSE}
 w_deaths_2015_2021 %>% 
@@ -243,6 +243,12 @@ w_deaths_2015_2021 %>%
 ```
 
 ## Filling with zeroes
+
+```{r eval=FALSE, include=FALSE}
+raum %>% 
+  group_by(GMDNAME) %>% 
+  filter(n() > 1)
+```
 
 All possible combinations of `year, month, canton, municipality, age & sex` are used and then empty strata are filled with zeroes.  
 
@@ -255,7 +261,7 @@ w_deaths_2015_2021_exp <-
   distinct() %>% 
   left_join(w_deaths_2015_2021) %>% 
   select(-deaths, -canton) %>% 
-  # avoiding NAs
+  # avoiding NAs in three communities without cases
   mutate(
     year = if_else(is.na(year), as.integer(2015), year),
     month = if_else(is.na(month), as.integer(1), month),
@@ -273,6 +279,11 @@ w_deaths_2015_2021_exp <-
   relocate(KTNAME, .after = GMDNAME) %>% 
   arrange(GMDNR, year, month, age, sex) %>% 
   filter( !(year == 2021 & month > 6))
+```
+
+```{r eval=FALSE, include=FALSE}
+length(unique(raum$GMDNAME))
+length(unique(w_deaths_2015_2021_exp$GMDNAME))
 ```
 
 That obviously increases the size of the dataset from `r number(nrow(w_deaths_2015_2021), big.mark = ",")` to `r number(nrow(w_deaths_2015_2021_exp), big.mark = ",")` (*ie.* 2,163 municipalities each with 2,016 data points * 7 years * 12 months * 6 age groups * 2 sexes).  
