@@ -77,8 +77,14 @@ unlink("data-raw/BfS/ag-b-00.03-875-gg22/ggg_2022_LV95/ggg_2022_LV95.gdb", recur
 ```
 
 ```{r warning=FALSE}
-gg <- 
+gg_raw <-
   st_read("data-raw/BfS/ag-b-00.03-875-gg22/ggg_2022_LV95/shp/g1g22.shp",
+          as_tibble = TRUE) %>%
+  st_set_crs(2056) %>%
+  st_zm(drop = TRUE, what = "ZM")
+
+gg <- 
+  st_read("data/BfS/ag-b-00.03-875-gg22/ggg_2022_LV95/shp/g1g22.shp",
           as_tibble = TRUE) %>% 
   st_set_crs(2056) %>% 
   st_zm(drop = TRUE, what = "ZM")
@@ -500,11 +506,16 @@ raum <- read_xlsx("data-raw/BfS/Raumgliederungen.xlsx",
   ) %>% 
   relocate(ARGRNAME, .after = ARGRNR) %>% 
   relocate(ARNAME, .after = ARNR) %>% 
-  mutate(border = if_else(ARNAME %in% c("Schaffhausen", "Basel", 
-                                        "Delémont", "Porrentruy", "Saignelégier–Le Noirmont", "La Chaux-de-Fonds",
-                                        "Le Chenit", "Genève",
-                                        "Locarno", "Lugano"), 
-                          1, 0))
+  mutate(border = if_else(ARNAME %in% c("Schaffhausen", 
+                                        "Delémont", 
+                                        "Porrentruy", 
+                                        "Saignelégier-Le Noirmont", 
+                                        "La Chaux-de-Fonds",
+                                        "Le Chenit", 
+                                        "Locarno", 
+                                        "Lugano") | 
+                            ARGRNAME %in% c("Region Basel", "Region Genf"), 
+                          1, 0)) 
 ```
 
 ```{r include=FALSE}
@@ -534,7 +545,7 @@ tm_shape(se, is.master = FALSE) +
   tm_shape(gg) +
   tm_borders(col = "white") +
   tm_layout(
-    title = "Border municipalities 2021"
+    title = "Border municipalities 2022"
   )
 ```
 
@@ -546,6 +557,7 @@ gg %>%
   left_join(raum) %>% 
   filter(border == 1) %>%  
   select(GMDNAME, ARGRNAME, ARNAME) %>% 
+  arrange(ARGRNAME, ARNAME, GMDNAME) %>% 
   datatable() 
 ```
 
@@ -577,14 +589,25 @@ So called 'productive areas', also coming from BfS' *ThemaKart* [product](https:
 
 Roughly coincides with removing areas of above 2000m asl.
 
-```{r results=FALSE}
-tg3o <- 
+```{r include=FALSE}
+tg3o_raw <- 
   st_read("data-raw/BfS/KM04-00-c-suis-2022-q/01_INST/Vegetationsfläche_vf/K4_polg20220101_vf/K4polg20220101vf_ch2007Poly.shp",
           as_tibble = TRUE) %>% 
   st_transform(2056) %>% 
   rename(GMDNR = id,
          GMDNAME = name)
 ```
+
+```{r results=FALSE}
+tg3o <- 
+  st_read("data/BfS/KM04-00-c-suis-2022-q/01_INST/Vegetationsfläche_vf/K4_polg20220101_vf/K4polg20220101vf_ch2007Poly.shp",
+          as_tibble = TRUE) %>% 
+  st_transform(2056) %>% 
+  rename(GMDNR = id,
+         GMDNAME = name)
+```
+
+**Note:** *the three discontinued municipality borders highlighted above have been also corrected in this dataset.*  
 
 ```{r eval=FALSE, include=FALSE}
 # sanity checks
@@ -617,11 +640,6 @@ st_write(tg3o, "data/geo/tg3o.gpkg", layer = "tg3o", append = FALSE)
 
 # Spatial connectivity of municipalities
 
-```{r eval=FALSE, include=FALSE}
-st_write(gg, "data/nb/nb.gpkg", layer = "gg", append = FALSE)
-st_write(tg3o, "data/nb/nb.gpkg", layer = "tg3o", append = FALSE)
-```
-
 Based on queen connectivity between the areas. Uses 'normal' municipality boundaries and connects them irrespectively of mountains.
 
 ```{r eval=FALSE, include=FALSE}
@@ -630,16 +648,10 @@ Based on queen connectivity between the areas. Uses 'normal' municipality bounda
 #   st_cast("POLYGON")
 ```
 
-## Corrected files
-
-```{r}
-gg_nb <- st_read("data/nb/nb.gpkg", layer = "gg_nb")
-```
-
 ## Weights
 
 ```{r}
-gg_wm_q <- poly2nb(gg_nb, queen = TRUE, row.names = gg$GMDNR)
+gg_wm_q <- poly2nb(gg, queen = TRUE, row.names = gg$GMDNR)
 
 gg_wm_q
 summary(gg_wm_q)
@@ -782,19 +794,19 @@ rm(temp1, temp2); gc()
 `1322 Freienbach` fixed above:
 
 ```{r echo=FALSE}
-tm_shape(gg %>% 
+tm_shape(gg_raw %>% 
            filter(GMDNAME %in% c("Freienbach", "Rapperswil-Jona"))) +
   tm_fill(col = "red", lwd = 2, alpha = 0.5)
 ```
 
 ```{r include=FALSE}
-temp1 <- gg %>% 
-  st_join(gg %>% 
+temp1 <- gg_raw %>% 
+  st_join(gg_raw %>% 
             filter(GMDNAME %in% c("Freienbach", "Rapperswil-Jona")), 
           left = FALSE) %>% 
   as_Spatial()
 
-temp2 <- gg %>% 
+temp2 <- gg_raw %>% 
   filter(GMDNAME %in% c("Freienbach", "Rapperswil-Jona")) %>% 
   as_Spatial()
 ```
@@ -809,18 +821,18 @@ plot(gg_wm_q, coordinates(as_Spatial(gg)),
 ## Connectivity over Lake Lugano
 
 ```{r echo=FALSE}
-tm_shape(gg %>% 
-           st_join(gg %>% 
+tm_shape(gg_raw %>% 
+           st_join(gg_raw %>% 
                      filter(GMDNAME %in% c("Bissone", "Melide")), 
                    left = FALSE)) +
   tm_borders(col = "grey50", lwd = 1, alpha = 0.5) +
-  tm_shape(gg %>% 
+  tm_shape(gg_raw %>% 
              filter(GMDNAME %in% c("Bissone", "Melide"))) + 
   tm_fill(col = "red", lwd = 2, alpha = 0.5)
 ```
 
 ```{r include=FALSE}
-temp <- gg %>% 
+temp <- gg_raw %>% 
   filter(GMDNAME %in% c("Bissone", "Melide"))
 ```
 
@@ -860,18 +872,19 @@ Based on queen connectivity between the productive areas. Uses 'tg3o' simplified
 #   st_cast("POLYGON")
 ```
 
-## Corrected files
-
-```{r}
-tg3o_nb <- st_read("data/nb/nb.gpkg", layer = "tg3o_nb")
-```
-
 ## Weights
 
-```{r}
-tg3o_wm_q <- poly2nb(tg3o_nb, queen = TRUE, row.names = tg3o$GMDNR)
+```{r include=FALSE}
+tg3o_raw_wm_q <- poly2nb(tg3o_raw, queen = TRUE, row.names = tg3o_raw$GMDNR)
 
 # tg3o_wm_q
+# summary(tg3o_wm_q)
+```
+
+```{r}
+tg3o_wm_q <- poly2nb(tg3o, queen = TRUE, row.names = tg3o$GMDNR)
+
+tg3o_wm_q
 summary(tg3o_wm_q)
 
 write_rds(tg3o_wm_q, "data/nb/tg3o_wm_q.Rds")
@@ -904,9 +917,9 @@ summary(tg3o_wm_q)
 Original connectivity, notice disconnected 'islands' of polygons:
 
 ```{r echo=FALSE}
-plot(as_Spatial(tg3o), col = "lightgrey") 
+plot(as_Spatial(tg3o_raw), col = "lightgrey") 
 
-plot(tg3o_orig_wm_q, coordinates(as_Spatial(tg3o_orig)), 
+plot(tg3o_raw_wm_q, coordinates(as_Spatial(tg3o_raw)), 
      pch = 19, cex = 0.6, add = TRUE, col = "red")
 ```
 
@@ -944,5 +957,7 @@ report::report(sessionInfo())
 ```
 
 ```{r include=FALSE}
-renv::snapshot(prompt = FALSE)
+if (Sys.info()[["user"]] == "panczak") {
+  renv::snapshot(prompt = FALSE)
+}
 ```
