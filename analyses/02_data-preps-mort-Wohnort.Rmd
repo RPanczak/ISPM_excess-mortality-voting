@@ -53,9 +53,7 @@ knitr::opts_knit$set(width = 75)
 
 <!-- ----------------------------------------------------- -->
 
-# Mortality data 2015-2021
-
-## Source 
+# Source 
 
 Custom file delivered by BfS covering 2021 period and standardizing municipalities to Jul 2021.  
 
@@ -77,7 +75,7 @@ w_deaths_2015_2021 <- read_csv("data-raw/BfS-closed/monthly_deaths/13OCT21_Liefe
   mutate(GMDNAME = if_else(GMDNAME == "Klosters-Serneus", "Klosters", GMDNAME)) 
 ```
 
-## Municipality updates 
+# Municipality updates 
 
 To reach the state of `2022-01-01`.  
 
@@ -108,7 +106,7 @@ w_deaths_2015_2021 %<>%
   mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME))
 ```
 
-## Aggregation
+# Monthly aggregation
 
 ```{r}
 w_deaths_2015_2021 %<>% 
@@ -153,7 +151,7 @@ w_deaths_2015_2021 %>%
   mutate(Deaths = as.character(number(Deaths, big.mark = ","))) 
 ```
 
-## Codes of geographical areas
+# Codes of geographical areas
 
 ```{r include=FALSE}
 raum <- read_rds("data/BfS/raum.Rds")
@@ -193,7 +191,7 @@ no_cases %>%
 rm(no_cases)
 ```
 
-## Age groups
+# Age groups
 
 Original age groups:  
 
@@ -231,7 +229,7 @@ w_deaths_2015_2021 %<>%
 frq(w_deaths_2015_2021, age)
 ```
 
-## Distribution of death counts
+# Distribution of death counts
 
 Obviously highly skewed.  
 **Note:** *No zeroes here yet! No pop denominator either!*  
@@ -268,7 +266,7 @@ w_deaths_2015_2021_exp <-
     sex = if_else(is.na(sex), "Male", sex),
     age = if_else(is.na(age), "<40", age)
   ) %>% 
-  expand(GMDNAME, year, month, age, sex) %>%
+  expand(GMDNAME, year, month, sex, age) %>%
   left_join(w_deaths_2015_2021) %>% 
   replace_na(list(deaths = 0)) %>% 
   mutate(date = ymd(paste(year, month, "1", sep = " "))) %>% 
@@ -288,7 +286,15 @@ length(unique(w_deaths_2015_2021_exp$GMDNAME))
 
 That obviously increases the size of the dataset from `r number(nrow(w_deaths_2015_2021), big.mark = ",")` to `r number(nrow(w_deaths_2015_2021_exp), big.mark = ",")` (*ie.* 2,163 municipalities each with 2,016 data points * 7 years * 12 months * 6 age groups * 2 sexes).  
 
+## Zero cells 
+
 Needless to say that creates large amount of zero cells:
+
+```{r echo=FALSE}
+w_deaths_2015_2021 %>% 
+  ggplot(aes(deaths)) + 
+  geom_histogram(binwidth = 1)
+```
 
 ```{r echo=FALSE}
 frq(w_deaths_2015_2021_exp, deaths == 0)
@@ -302,9 +308,9 @@ w_deaths_2015_2021_exp %>%
   frq(deaths == 0)
 ```
 
-## Examples of time series
+# Examples of time series
 
-### Municipalities Bern & Meienried:  
+## Municipalities Bern & Meienried:  
 
 ```{r echo=FALSE}
 w_deaths_2015_2021_exp %>% 
@@ -334,7 +340,72 @@ w_deaths_2015_2021_exp %>%
 write_rds(w_deaths_2015_2021_exp, "data/BfS-closed/monthly_deaths/w_deaths_2015_2021_exp.Rds")
 ```
 
-<!-- ----------------------------------------------------- -->
+# Yearly aggregation
+
+Excluding 2021.  
+
+```{r}
+w_deaths_2015_2020_year <- w_deaths_2015_2021_exp %>% 
+  filter(year < 2021) %>% 
+  group_by(year, KTNAME, GMDNR, GMDNAME, 
+           ARGRNR, ARGRNAME, 
+           ARNR, ARNAME, border, 
+           sex, age) %>% 
+  summarise(deaths = sum(deaths)) %>% 
+  ungroup()
+```
+
+## Description of data  
+
+```{r echo=FALSE}
+report::report(w_deaths_2015_2020_year)
+```
+
+```{r echo=FALSE}
+skim(w_deaths_2015_2020_year)
+```
+
+```{r include=FALSE}
+# write_rds(w_deaths_2015_2021, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds")
+write_rds(w_deaths_2015_2020_year, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds")
+```
+
+That obviously decreases the size of the dataset from `r number(nrow(w_deaths_2015_2021_exp), big.mark = ",")` to `r number(nrow(w_deaths_2015_2020_year), big.mark = ",")` (*ie.* 2,163 municipalities each with 2,016 data points * 6 years * 6 age groups * 2 sexes).  
+
+## Zero cells 
+
+Less but still large amount of zero cells:
+
+```{r echo=FALSE}
+w_deaths_2015_2020_year %>% 
+  ggplot(aes(deaths)) + 
+  geom_histogram(binwidth = 1)
+```
+
+```{r echo=FALSE}
+frq(w_deaths_2015_2020_year, deaths == 0)
+```
+
+Situation only marginally improves with exclusion of `<40` age group stratum:  
+
+```{r echo=FALSE}
+w_deaths_2015_2020_year %>% 
+  filter(age != "<40") %>% 
+  frq(deaths == 0)
+```
+
+## Examples of Bern & Meienried:  
+
+```{r echo=FALSE}
+w_deaths_2015_2020_year %>% 
+  filter(GMDNAME %in% c("Bern", "Meienried")) %>% 
+  group_by(GMDNAME, year) %>% 
+  summarise(deaths = sum(deaths)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = year, y = deaths, group = GMDNAME, color = GMDNAME)) + 
+  geom_line() + geom_point() +
+  theme_minimal()
+```
 
 # Groups for stratified modelling 
 
