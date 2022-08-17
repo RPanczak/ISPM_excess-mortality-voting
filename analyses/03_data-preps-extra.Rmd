@@ -52,7 +52,6 @@ knitr::opts_knit$set(width = 75)
 ```
 
 <!-- ----------------------------------------------------- -->
-<!-- ----------------------------------------------------- -->
 
 # Population
 
@@ -71,7 +70,7 @@ Important info from footnotes:
 
 ## Community codes
 
-Community mutations data after `2021-01-01` from @Cordula are integrated into the data and pops are recalculated using these new codes to match mortality.  
+Community mutations data after `2021-01-01` from BfS are integrated into the data and pops are recalculated using these new codes to match mortality.  
 
 ```{r eval=FALSE, include=FALSE}
 histcomm_14 <- read_excel("data-raw/BfS/Gemeindestand - Stand vom 01.07.2021.xlsx", 
@@ -101,19 +100,19 @@ Further corrections of municipalities mutations are needed to bring the data to 
 Data aggregated to age groups as in deaths dataset. 
 
 ```{r}
-population <- read_xlsx("data-raw/BfS/px-x-0103010000_201.xlsx", 
-                        col_types = c("numeric", 
-                                      "skip", "numeric", "text", "skip", 
-                                      "skip", "skip", "text", "skip", "skip", 
-                                      "skip", "text", "numeric", "numeric", 
-                                      "numeric", "numeric", "numeric", 
-                                      "numeric", "numeric", "numeric", 
-                                      "numeric", "numeric", "numeric", 
-                                      "numeric", "numeric", "numeric", 
-                                      "numeric", "numeric", "numeric", 
-                                      "numeric", "numeric", "numeric", 
-                                      "numeric"), 
-                        skip = 1) %>%
+pop <- read_xlsx("data-raw/BfS/px-x-0103010000_201.xlsx", 
+                 col_types = c("numeric", 
+                               "skip", "numeric", "text", "skip", 
+                               "skip", "skip", "text", "skip", "skip", 
+                               "skip", "text", "numeric", "numeric", 
+                               "numeric", "numeric", "numeric", 
+                               "numeric", "numeric", "numeric", 
+                               "numeric", "numeric", "numeric", 
+                               "numeric", "numeric", "numeric", 
+                               "numeric", "numeric", "numeric", 
+                               "numeric", "numeric", "numeric", 
+                               "numeric"), 
+                 skip = 1) %>%
   remove_empty(c("rows", "cols")) %>% clean_names() %>% 
   rename(year = x1, 
          GMDNR = x2,
@@ -141,7 +140,7 @@ population <- read_xlsx("data-raw/BfS/px-x-0103010000_201.xlsx",
   select(-x80_84_jahre, -x85_89_jahre, -x90_94_jahre,
          -x95_99_jahre, -x100_jahre_und_mehr) %>% 
   pivot_longer(cols = `<40`:`80+`, 
-               names_to = "age", values_to = "population") %>% 
+               names_to = "age", values_to = "pop") %>% 
   
   # BfS identified changes
   left_join(histcomm, by = c("GMDNR" = "bfs_gde_num_old")) %>% 
@@ -193,7 +192,7 @@ population <- read_xlsx("data-raw/BfS/px-x-0103010000_201.xlsx",
   mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME)) %>% 
   
   group_by(year, GMDNR, GMDNAME, sex, age) %>% 
-  summarise(population = as.integer(sum(population))) %>% 
+  summarise(pop = as.integer(sum(pop))) %>% 
   ungroup() %>% 
   arrange(year, GMDNR, sex, age)
 ```
@@ -205,54 +204,53 @@ rm(histcomm); gc()
 Yearly totals (**on 31st Dec**!):  
 
 ```{r echo=FALSE}
-population %>% 
+pop %>% 
   group_by(year) %>% 
-  summarise(population = sum(population)) %>% 
-  mutate(population = as.character(number(population, big.mark = ","))) 
+  summarise(pop = sum(pop)) %>% 
+  mutate(pop = as.character(number(pop, big.mark = ","))) 
 ```
 
 Age (40 plus!) distributions over years  
 
 ```{r echo=FALSE}
-population %>% 
+pop %>% 
   filter(age != "<40") %>% 
   group_by(year, age, sex) %>% 
-  summarise(population = sum(population)) %>% 
+  summarise(pop = sum(pop)) %>% 
   ungroup() %>% 
-  ggplot(aes(x = age, y = population, fill = as.factor(year))) + 
+  ggplot(aes(x = age, y = pop, fill = as.factor(year))) + 
   geom_col(position = "dodge") + 
   scale_fill_viridis_d() + 
+  xlab("Age group") + ylab("Population count (31st Dec)") +
   theme_minimal()
 ```
 
-## Predicting 2020 & 2021 pops
+## Predicting 2020 population
 
 ```{r eval=FALSE, include=FALSE}
 # smallest pops
-population %>% 
-  filter(year == 2020) %>% 
+pop %>% 
+  filter(year == 2019) %>% 
   group_by(GMDNR) %>% 
-  summarize(population = sum(population),
+  summarize(pop = sum(pop),
             GMDNAME = first(GMDNAME)) %>% 
   ungroup() %>% 
-  arrange(population)
-# arrange(desc(population))
+  arrange(pop)
+# arrange(desc(pop))
 ```
 
-For each age, sex, nationality stratum, for each municipality separately, Poisson model was fitted using the 2014-2019 data; then prediction was made for 2020 & 2021 years. The gist of this operation was to exclude the effect of pandemic from the population counts in years affected.   
+For each age, sex, nationality stratum, for each municipality separately, Poisson model was fitted using the 2014-2019 data; then prediction was made for 2020 & 2021 years. The gist of this operation was to exclude the effect of pandemic from the pop counts in years affected.   
 
 ```{r}
-population_ext_poi <- population %>% 
+pop_ext_poi <- pop %>% 
   filter(year != 2020) %>% 
   # filter(GMDNR == 261 | GMDNR == 389) %>%
   group_by(GMDNR, age, sex) %>% 
-  do(glm(population ~ year, data = ., family = "poisson") %>%
-       predict(., newdata = tibble(year = c(as.integer(2020), as.integer(2021))),                type = "response") %>%
-       tibble(year = c(as.integer(2020), as.integer(2021)), 
-              population_ext_poi = .)
-  ) %>% 
+  do(glm(pop ~ year, data = ., family = "poisson") %>%
+       predict(., newdata = tibble(year = as.integer(2020)), type = "response") %>%
+       tibble(year = as.integer(2020), pop_ext_poi = .)) %>% 
   ungroup() %>% 
-  mutate(population_ext_poi = as.integer(round(population_ext_poi))) %>% 
+  mutate(pop_ext_poi = as.integer(round(pop_ext_poi))) %>% 
   arrange(year, GMDNR, sex, age) %>% 
   relocate(year)
 ```
@@ -260,22 +258,22 @@ population_ext_poi <- population %>%
 Summary of values:  
 
 ```{r echo=FALSE}
-summary(population_ext_poi$population_ext_poi)
+summary(pop_ext_poi$pop_ext_poi)
 ```
 
-**Note:** *4 NAs!*  
+**Note:** *2 NAs!*  
 
 ```{r echo=FALSE}
-population %>% 
+pop %>% 
   filter(GMDNR %in% c(4232) & sex == "Male" & age == "80+")
 
-population_ext_poi %>% 
+pop_ext_poi %>% 
   filter(GMDNR %in% c(4232) & sex == "Male" & age == "80+")
 
-population %>% 
+pop %>% 
   filter(GMDNR %in% c(389) & sex == "Male" & age == "80+")
 
-population_ext_poi %>% 
+pop_ext_poi %>% 
   filter(GMDNR %in% c(389) & sex == "Male" & age == "80+")
 ```
 
@@ -285,26 +283,26 @@ Results for large municipality are fine.
 Predictions are in red.  
 
 ```{r echo=FALSE, warning=FALSE}
-population %>% 
+pop %>% 
   filter(GMDNR == 261 & (age == "80+" | age == "<40")) %>% 
-  bind_rows(population_ext_poi %>% 
+  bind_rows(pop_ext_poi %>% 
               filter(GMDNR == 261 & (age == "80+" | age == "<40"))) %>% 
   ggplot(aes(x = year)) + 
-  geom_point(aes(y = population)) +
-  geom_point(aes(y = population_ext_poi), color = "red") +
+  geom_point(aes(y = pop)) +
+  geom_point(aes(y = pop_ext_poi), color = "red") +
   facet_wrap(age~sex, scales = "free")
 ```
 
 For small municipality we might end up with sth more wiggly. 
 
 ```{r echo=FALSE, warning=FALSE}
-population %>% 
+pop %>% 
   filter(GMDNR == 389 & (age == "80+" | age == "<40")) %>% 
-  bind_rows(population_ext_poi %>% 
+  bind_rows(pop_ext_poi %>% 
               filter(GMDNR == 389 & (age == "80+" | age == "<40"))) %>% 
   ggplot(aes(x = year)) + 
-  geom_point(aes(y = population)) +
-  geom_point(aes(y = population_ext_poi), color = "red") +
+  geom_point(aes(y = pop)) +
+  geom_point(aes(y = pop_ext_poi), color = "red") +
   facet_wrap(age~sex, scales = "free")
 ```
 
@@ -313,26 +311,29 @@ population %>%
 There are two municipalities with missing predictions for oldest males:  
 
 ```{r echo=FALSE}
-(problems <- population_ext_poi %>% 
-   filter(is.na(population_ext_poi)) %>% 
+(problems <- pop_ext_poi %>% 
+   filter(is.na(pop_ext_poi)) %>% 
    select(GMDNR, age, sex) %>% 
-   left_join(population %>% 
+   left_join(pop %>% 
                select(GMDNR, GMDNAME) %>% 
                distinct()) %>% 
    distinct())
 ```
 
 ```{r eval=FALSE, include=FALSE}
-population %>% 
-  bind_rows(population_ext_poi) %>% 
+sapply(pop, function(x) sum(is.na(x)))
+sapply(pop_ext_poi, function(x) sum(is.na(x)))
+
+pop %>% 
+  bind_rows(pop_ext_poi) %>% 
   filter(GMDNR %in% problems$GMDNR,
          age %in% problems$age,
          sex %in% problems$sex) %>%
   arrange(GMDNR, sex, age, year) %>%
   View()
 
-population %>% 
-  bind_rows(population_ext_lm) %>% 
+pop %>% 
+  bind_rows(pop_ext_poi) %>% 
   filter(GMDNR %in% problems$GMDNR,
          age %in% problems$age,
          sex %in% problems$sex) %>%
@@ -343,75 +344,65 @@ population %>%
 Population in this strata was replaced by estimates of a simple linear model.  
 
 ```{r include=FALSE}
-population_ext_lm <- population %>%
+pop_ext_lm <- pop %>%
   filter(year != 2020) %>%
   group_by(GMDNR, age, sex) %>%
-  do(lm(population ~ year, data = .) %>%
-       predict(., newdata = tibble(year = c(as.integer(2020), as.integer(2021)))) %>%
-       tibble(
-         year = c(as.integer(2020), as.integer(2021)),
-         population_ext_lm = .
-       )) %>%
+  do(lm(pop ~ year, data = .) %>%
+       predict(., newdata = tibble(year = as.integer(2020))) %>%
+       tibble(year = as.integer(2020), pop_ext_lm = .)) %>%
   ungroup() %>%
-  mutate(population_ext_lm = as.integer(round(population_ext_lm))) %>%
+  mutate(pop_ext_lm = as.integer(round(pop_ext_lm))) %>%
   arrange(year, GMDNR, sex, age) %>%
   relocate(year)
 ```
 
 ```{r}
-population_complete <- population %>% 
+pop_complete <- pop %>% 
   
-  # NAs for first half of 2021
-  bind_rows(
-    population %>% 
-      filter(year == 2020) %>% 
-      mutate(year = 2021, population = NA_integer_)
-  ) %>% 
+  # extrapolated 2020
+  left_join(pop_ext_poi) %>% 
+  mutate(pop_ext_poi = if_else(year < 2020, 
+                               pop, pop_ext_poi)) %>% 
   
-  # extrapolated two years
-  left_join(population_ext_poi) %>% 
-  mutate(population_ext_poi = if_else(year < 2020, 
-                                      population, population_ext_poi)) %>% 
-  
-  # replacing missings
-  left_join(population_ext_lm) %>% 
-  mutate(population_ext_poi = if_else(year >= 2020 & is.na(population_ext_poi), 
-                                      population_ext_lm, population_ext_poi)) %>% 
-  select(-population_ext_lm) 
+  # replacing poi missings with lm
+  left_join(pop_ext_lm) %>% 
+  mutate(pop_ext_poi = if_else(year >= 2020 & is.na(pop_ext_poi), 
+                               pop_ext_lm, pop_ext_poi)) %>% 
+  select(-pop_ext_lm) 
 ```
 
 ## Getting mid-year pops
 
-For each age, sex, nationality stratum, for each municipality separately, simple mean of the two years of data is used to estimate the middle point. In such case we use, for instance data from 31st Dec 2014 and 31st Dec 2015 to estimate population mid-2015.   
+For each age, sex, nationality stratum, for each municipality separately, simple mean of the two years of data is used to estimate the middle point. In such case we use, for instance data from 31st Dec 2014 and 31st Dec 2015 to estimate pop mid-2015.   
 
 ```{r}
-for (i in 2014:2020){
+for (i in 2014:2019){
   
-  result <- population_complete %>% 
+  result <- pop_complete %>% 
     filter(year >= i & year <= i + 1) %>% 
     # filter(GMDNR == 261 | GMDNR == 389) %>%
     group_by(GMDNR, age, sex) %>% 
-    summarise(population_mid_poi = mean(population_ext_poi)) %>% 
+    summarise(pop_mid_poi = mean(pop_ext_poi)) %>% 
     ungroup() %>% 
     mutate(year = as.integer(i + 1),
-           population_mid_poi = as.integer(round(population_mid_poi))) %>% 
+           pop_mid_poi = as.integer(round(pop_mid_poi))) %>% 
     arrange(GMDNR, sex, age) %>% 
     relocate(year)
   
   if (i == 2014) {
-    population_mid_poi <- result
+    pop_mid_poi <- result
   } else {
-    population_mid_poi <- bind_rows(population_mid_poi, result)
+    pop_mid_poi <- bind_rows(pop_mid_poi, result)
   }
   
 }
 ```
 
 ```{r include=FALSE}
-table(population_complete$year)
-table(population_mid_poi$year)
+table(pop_complete$year)
+table(pop_mid_poi$year)
 
-rm(i, result, population, population_ext_lm, population_ext_poi); gc()
+rm(i, result, pop, pop_ext_poi, pop_ext_lm); gc()
 ```
 
 ### Large municipality 
@@ -419,14 +410,15 @@ rm(i, result, population, population_ext_lm, population_ext_poi); gc()
 Again, results for large municipality are fine:  
 
 ```{r echo=FALSE, warning=FALSE}
-population_complete %>% 
+pop_complete %>% 
   filter(GMDNR == 261 & (age == "80+" | age == "<40")) %>% 
-  bind_rows(population_mid_poi %>% 
+  mutate(year = year + 1) %>% 
+  bind_rows(pop_mid_poi %>% 
               filter(GMDNR == 261 & (age == "80+" | age == "<40")) %>% 
-              mutate(year = year - .5)) %>% 
+              mutate(year = year + .5)) %>% 
   ggplot(aes(x = year)) + 
-  geom_point(aes(y = population_ext_poi)) +
-  geom_point(aes(y = population_mid_poi), color = "red") +
+  geom_point(aes(y = pop_ext_poi)) +
+  geom_point(aes(y = pop_mid_poi), color = "red") +
   facet_wrap(age~sex, scales = "free")
 ```
 
@@ -435,156 +427,157 @@ population_complete %>%
 Again, for small municipality we might end up with sth more wiggly.  
 
 ```{r echo=FALSE, warning=FALSE}
-population_complete %>% 
+pop_complete %>% 
   filter(GMDNR == 389 & (age == "80+" | age == "<40")) %>% 
-  bind_rows(population_mid_poi %>% 
+  mutate(year = year + 1) %>% 
+  bind_rows(pop_mid_poi %>% 
               filter(GMDNR == 389 & (age == "80+" | age == "<40")) %>% 
-              mutate(year = year - .5)) %>% 
+              mutate(year = year + .5)) %>% 
   ggplot(aes(x = year)) + 
-  geom_point(aes(y = population_ext_poi)) +
-  geom_point(aes(y = population_mid_poi), color = "red") +
+  geom_point(aes(y = pop_ext_poi)) +
+  geom_point(aes(y = pop_mid_poi), color = "red") +
   facet_wrap(age~sex, scales = "free")
 ```
 
-## Deaths <-> population link
+## Deaths <-> pop link
 
-Prepared population file is merged to deaths dataset prepared in `02.Rmd`.  
+Prepared pop file is merged to deaths dataset prepared in `02.Rmd`.  
 **We use file based on place of residence.**  
 
 ```{r}
-w_deaths_2015_2021_pop <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2021_exp.Rds") %>% 
-  left_join(population_mid_poi) 
+w_deaths_2015_2020_year_pop <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds") %>% 
+  left_join(pop_mid_poi) 
 ```
 
 ```{r eval=FALSE, include=FALSE}
-summary(w_deaths_2015_2021_pop$population_mid_poi)
+table(w_deaths_2015_2020_year_pop$year)
+summary(w_deaths_2015_2020_year_pop$pop_mid_poi)
 ```
 
-## Deaths > population problem
+## Deaths > pop problem
 
 ```{r}
-surplus <- w_deaths_2015_2021_pop %>% 
-  filter(deaths > population_mid_poi) %>% 
-  arrange(GMDNR, date) %>% 
-  mutate(difference = population_mid_poi - deaths)
+surplus <- w_deaths_2015_2020_year_pop %>% 
+  filter(deaths > pop_mid_poi) %>% 
+  arrange(GMDNR, year) %>% 
+  mutate(difference = pop_mid_poi - deaths)
 ```
 
-There are `r number(nrow(surplus))` strata from `r number(length(unique(surplus$GMDNR)))`  communities where count of deaths is larger than count of population. The difference is always 1 in plus over population 0.   
+There are `r number(nrow(surplus))` strata from `r number(length(unique(surplus$GMDNR)))`  communities where count of deaths is larger than count of pop. The difference is always 1 in plus over pop 0.   
 
 ```{r echo=FALSE}
 surplus %>% 
-  select(-GMDNR, -date, -border, -starts_with("AR")) %>% 
+  select(-GMDNR, -border, -starts_with("AR")) %>% 
   datatable()
 ```
 
-**In all these cases population was increased by 1 to match the count of deaths!**  
+**In all these cases pop was increased by 1 to match the count of deaths!**  
 
 ```{r}
-w_deaths_2015_2021_pop %<>% 
-  mutate(population_mid_poi = if_else(deaths > population_mid_poi, deaths, population_mid_poi))
+w_deaths_2015_2020_year_pop %<>% 
+  mutate(pop_mid_poi = if_else(deaths > pop_mid_poi, deaths, pop_mid_poi))
 ```
 
 ```{r eval=FALSE, include=FALSE}
 # missing checks
-w_deaths_2015_2021_exp <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2021_exp.Rds")
+test <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds")
 
-missing1 <- w_deaths_2015_2021_exp %>% 
-  anti_join(population) %>% 
+missing1 <- test %>% 
+  anti_join(pop_complete) %>% 
   select(GMDNAME) %>% 
   distinct()
 
-missing2 <- population_complete %>% 
+missing2 <- pop_complete %>% 
   filter(year > 2014) %>% 
-  anti_join(w_deaths_2015_2021_exp) %>% 
+  anti_join(test) %>% 
   select(GMDNAME) %>% 
   distinct()
 
-rm(w_deaths_2015_2021_exp, missing1, missing2); gc()
+rm(test, missing1, missing2); gc()
 ```
 
 ```{r include=FALSE}
 rm(surplus); gc()
 
-write_rds(w_deaths_2015_2021_pop, "data/BfS-closed/monthly_deaths/w_deaths_2015_2021_pop.Rds")
-write_rds(population_complete, "data/BfS/monthly_deaths/population_complete.Rds")
+write_rds(pop_complete, "data/BfS/pop_complete.Rds")
+write_rds(pop_mid_poi, "data/BfS/pop_mid_poi.Rds")
 ```
 
 <!-- ----------------------------------------------------- -->
 
 # Cartogram
 
-2020 population counts (*ignoring age structure*) were used to derive cartograms.  
+2020 pop counts (*ignoring age structure*) were used to derive cartograms.  
 
-## Communities 1
+## Communities  & pops
 
 ```{r include=FALSE}
 # prepared in 01.Rmd
-gg21 <- read_rds("data/BfS/gg21.Rds") %>% select(GMDNR, GMDNAME)
-se21 <- read_rds("data/BfS/se21.Rds") %>% select(GMDNR, GMDNAME)
-kt21 <- read_rds("data/BfS/kt21.Rds") %>% select(KTNR, KTNAME)
+gg <- read_rds("data/BfS/gg.Rds") %>% select(GMDNR, GMDNAME)
+se <- read_rds("data/BfS/se.Rds") %>% select(GMDNR, GMDNAME)
+kt <- read_rds("data/BfS/kt.Rds") %>% select(KTNR, KTNAME)
 
-st_gg21 <- read_rds("data/swisstopo/st_gg21.Rds") %>% 
+st_gg <- read_rds("data/swisstopo/st_gg.Rds") %>% 
   st_transform(crs = 2056) %>% 
   select(-GEM_TEIL)
 
 carto_data <- 
-  gg21 %>% 
+  gg %>% 
   left_join(
-    population %>% 
-      filter(year == 2020) %>% 
+    pop_complete %>% 
+      # using 2019 to avoid effects of pandemic 
+      # modelled mid year 2020 can be used too
+      filter(year == 2019) %>% 
       group_by(GMDNR) %>% 
-      summarise(population = sum(population)) %>% 
+      summarise(pop = sum(pop)) %>% 
       ungroup()
   ) %>% 
   relocate(geometry, .after = last_col())
 ```
 
+## R solution 1
+
+Using `cartogram` package.  
+
 ```{r eval=FALSE}
-carto_data %>% 
-  select(-BZNR, -KTNR) %>% 
-  st_write("data/carto/in_gg21.shp", delete_dsn = TRUE)
+# takes a while!
+carto <- carto_data %>%
+  cartogram::cartogram_cont("pop")
 
-se21 %>% 
-  select(GMDNR, GMDNAME) %>% 
-  st_write("data/carto/in_se21.shp", delete_dsn = TRUE)
-
-# crashing :/
-# carto <- carto_data %>%
-#   cartogram::cartogram_cont("population")
-
-# write_rds(carto, "data/carto/carto.Rds")
+write_rds(carto, "data/carto/carto.Rds")
 
 carto_ncont <- carto_data %>% 
-  cartogram::cartogram_ncont("population")
+  cartogram::cartogram_ncont("pop")
 
 write_rds(carto_ncont, "data/carto/carto_ncont.Rds")
 
 carto_dorling <- carto_data %>% 
-  cartogram::cartogram_dorling("population")
+  cartogram::cartogram_dorling("pop")
 
 write_rds(carto_dorling, "data/carto/carto_dorling.Rds")
 ```
 
-```{r eval=FALSE, include=FALSE}
-# checking on swisstopo
-# carto_data <- 
-#   st_gg21 %>% 
-#   select(GMDNR) %>% 
-#   left_join(
-#     population %>% 
-#       filter(year == 2020) %>% 
-#       group_by(GMDNR) %>% 
-#       summarise(population = sum(population)) %>% 
-#       ungroup()
-#   )
+## R solution 2
 
-# crashing :/
-# carto <- carto_data %>%
-#   cartogram::cartogram_cont("population")
-```
+Using `cartogramR` package.  
 
 ```{r eval=FALSE}
-# ScapeToad version
+carto_gsm <- carto_data %>%
+  cartogramR::cartogramR(count = "pop", method = "gsm")
+
+write_rds(carto_gsm, "data/carto/carto_gsm.Rds")
+```
+
+## ScapeToad version
+
+```{r eval=FALSE}
+carto_data %>% 
+  st_write("data/carto/in_gg.shp", delete_dsn = TRUE)
+
+se %>% 
+  select(GMDNR, GMDNAME) %>% 
+  st_write("data/carto/in_se.shp", delete_dsn = TRUE)
+
 # java -Xmx1g -jar "C:\Program Files\ScapeToad-v11\ScapeToad.jar"
 ```
 
@@ -593,9 +586,11 @@ write_rds(carto_dorling, "data/carto/carto_dorling.Rds")
 carto_ncont <- read_rds("data/carto/carto_ncont.Rds")
 carto_dorling <- read_rds("data/carto/carto_dorling.Rds")
 
+# carto_gsm <- read_rds("data/carto/carto_gsm.Rds")
+
 # ScapeToad version
-carto <- st_read("data/carto/out_gg21.shp")
-carto_se <- st_read("data/carto/out_se21.shp")
+carto <- st_read("data/carto/out_gg.shp")
+carto_se <- st_read("data/carto/out_se.shp")
 
 tmap_mode("plot")
 ```
@@ -604,7 +599,7 @@ tmap_mode("plot")
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tm_shape(carto) + 
-  tm_polygons("population", 
+  tm_polygons("pop", 
               style = "bclust", n = 5,
               palette = "-RdYlGn",
               legend.show = TRUE) +
@@ -617,10 +612,10 @@ tm_shape(carto) +
 ### Noncontinuous cartogram  
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-tm_shape(kt21) + 
+tm_shape(kt) + 
   tm_borders() + 
   tm_shape(carto_ncont) + 
-  tm_fill("population", 
+  tm_fill("pop", 
           style = "bclust", n = 5,
           palette = "-RdYlGn",
           legend.show = TRUE) +
@@ -631,7 +626,7 @@ tm_shape(kt21) +
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tm_shape(carto_dorling) + 
-  tm_fill("population", 
+  tm_fill("pop", 
           style = "bclust", n = 5,
           palette = "-RdYlGn",
           legend.show = TRUE) +
@@ -640,89 +635,6 @@ tm_shape(carto_dorling) +
 
 ```{r include=FALSE}
 rm(carto, carto_dorling, carto_ncont, carto_se); gc()
-```
-
-## Labour market regions
-
-```{r include=FALSE}
-# prepared in 01.Rmd
-ar_21_cor <- read_rds("data/BfS/ar21.Rds") %>% select(-ARNAME)
-
-st_ar_21 <- read_rds("data/swisstopo/st_ar21.Rds") %>% select(-ARNAME)
-```
-
-```{r eval=FALSE}
-ar_carto_data <- 
-  ar_21_cor %>% 
-  left_join(
-    population %>% 
-      filter(year == 2020) %>% 
-      group_by(GMDNR) %>% 
-      summarise(population = sum(population)) %>% 
-      ungroup() %>% 
-      left_join(raum) %>% 
-      group_by(ARNR, ARNAME) %>% 
-      summarise(population = sum(population)) %>% 
-      ungroup()     
-  ) 
-
-ar_carto <- ar_carto_data %>%
-  cartogram::cartogram_cont("population", itermax = 50)
-
-ar_carto_ncont <- ar_carto_data %>% 
-  cartogram::cartogram_ncont("population")
-
-ar_carto_dorling <- ar_carto_data %>% 
-  cartogram::cartogram_dorling("population")
-
-write_rds(ar_carto, "data/carto/ar_carto.Rds")
-write_rds(ar_carto_ncont, "data/carto/ar_carto_ncont.Rds")
-write_rds(ar_carto_dorling, "data/carto/ar_carto_dorling.Rds")
-```
-
-```{r include=FALSE}
-ar_carto <- read_rds("data/carto/ar_carto.Rds")
-ar_carto_ncont <- read_rds("data/carto/ar_carto_ncont.Rds")
-ar_carto_dorling <- read_rds("data/carto/ar_carto_dorling.Rds")
-```
-
-### 'Classic' cartogram  
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-tm_shape(ar_carto) + 
-  tm_polygons("population", 
-              style = "bclust", n = 5,
-              palette = "-RdYlGn",
-              legend.show = TRUE) +
-  tm_layout(frame = FALSE)
-```
-
-### Noncontinuous cartogram  
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-tm_shape(kt21) + 
-  tm_borders() + 
-  tm_shape(ar_carto_ncont) + 
-  tm_fill("population", 
-          style = "bclust", n = 5,
-          palette = "-RdYlGn",
-          legend.show = TRUE) +
-  tm_layout(frame = FALSE)
-```
-
-### Dorling carotgram  
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-tm_shape(ar_carto_dorling) + 
-  tm_fill("population", 
-          style = "bclust", n = 5,
-          palette = "-RdYlGn",
-          legend.show = TRUE) +
-  tm_layout(frame = FALSE)
-```
-
-```{r include=FALSE}
-rm(ar_carto, ar_carto_ncont, ar_carto_dorling); gc()
 ```
 
 <!-- ----------------------------------------------------- -->
@@ -754,7 +666,7 @@ sep3 %>%
   frq(ssep3_d)
 ```
 
-This is aggregated to the level of `r scales::number(length(unique(st_gg21$GMDNR)), big.mark = ",")` communities from swisstopo.
+This is aggregated to the level of `r scales::number(length(unique(st_gg$GMDNR)), big.mark = ",")` communities from swisstopo.
 
 ## STATPOP
 
@@ -795,9 +707,9 @@ statpop2020_agg <- statpop2020 %>%
 
 Using data from `STATPOP` **2020**.  
 
-Dataset consists of `r scales::number(nrow(statpop2020), big.mark = ",")` individuals and `r scales::number(nrow(statpop2020_agg), big.mark = ",")` buildings. We selected individuals with type of residence *Hauptwohnsitz*, population type *Ständige Wohnbevölkerung*, main residency category *Nur ein Hauptwohnsitz* and with valid EGID building ID.  
+Dataset consists of `r scales::number(nrow(statpop2020), big.mark = ",")` individuals and `r scales::number(nrow(statpop2020_agg), big.mark = ",")` buildings. We selected individuals with type of residence *Hauptwohnsitz*, pop type *Ständige Wohnbevölkerung*, main residency category *Nur ein Hauptwohnsitz* and with valid EGID building ID.  
 
-The nearest building with SSEP was assigned for each of these building. The point dataset was then overlaid with community boundaries and summary measures of population based index were created and population level SEP was aggregated by community. 
+The nearest building with SSEP was assigned for each of these building. The point dataset was then overlaid with community boundaries and summary measures of pop based index were created and pop level SEP was aggregated by community. 
 
 ```{r include=FALSE}
 rm(statpop2020); gc()
@@ -806,32 +718,32 @@ rm(statpop2020); gc()
 ## 'nhood based averages for communities
 
 ```{r eval=FALSE}
-st_gg21 <- read_rds("data/swisstopo/st_gg21.Rds") %>% 
+st_gg <- read_rds("data/swisstopo/st_gg.Rds") %>% 
   st_transform(crs = 2056) %>% 
   select(GMDNR)
 
 # # or with full version?
-# st_gg21 <- st_read("data-raw/BfS/ag-b-00.03-875-gg21/ggg_2021-LV95/shp/g1g21_01072021.shp",
+# st_gg <- st_read("data-raw/BfS/ag-b-00.03-875-gg/ggg_2021-LV95/shp/g1g21_01072021.shp",
 #           as_tibble = TRUE)
 
-ssep3_gem_21 <- 
+ssep3_gem <- 
   st_join(sep3, 
-          st_gg21, 
+          st_gg, 
           join = st_intersects) 
 
-# tm_shape(gg21) +
+# tm_shape(gg) +
 #   tm_polygons() +
-#   tm_shape(ssep3_gem_21 %>% filter(is.na(GMDNR))) +
+#   tm_shape(ssep3_gem %>% filter(is.na(GMDNR))) +
 #   tm_dots()
 
-ssep3_gem_21_neigh <- ssep3_gem_21 %>% 
+ssep3_gem_neigh <- ssep3_gem %>% 
   st_drop_geometry() %>% 
   group_by(GMDNR) %>% 
   summarise(n = n(),
             ssep3_median = median(ssep3)) %>% 
   ungroup() 
 
-ssep3_gem_21_neigh_geo <- inner_join(gg21, ssep3_gem_21_neigh) %>% 
+ssep3_gem_neigh_geo <- inner_join(gg, ssep3_gem_neigh) %>% 
   filter(!is.na(ssep3_median)) %>% 
   mutate(median_ssep3_d = ntile(ssep3_median, 10)) %>% 
   mutate(median_ssep3_d = factor(median_ssep3_d,
@@ -842,20 +754,20 @@ ssep3_gem_21_neigh_geo <- inner_join(gg21, ssep3_gem_21_neigh) %>%
                                             "6", "7", "8", "9", 
                                             "10th - highest")))
 
-write_rds(ssep3_gem_21_neigh_geo, "data/BfS-closed/SEP/ssep3_gem_21_neigh_geo.rds")
+write_rds(ssep3_gem_neigh_geo, "data/BfS/ssep3_gem_neigh_geo.rds")
 ```
 
 ```{r include=FALSE}
-ssep3_gem_21_neigh_geo <- read_rds("data/BfS-closed/SEP/ssep3_gem_21_neigh_geo.rds")
+ssep3_gem_neigh_geo <- read_rds("data/BfS/ssep3_gem_neigh_geo.rds")
 ```
 
 Watch out for small n! Here some examples with communities below 20 n'hoods
 
 ```{r echo=FALSE}
-ssep3_gem_21_neigh_geo %>% 
+ssep3_gem_neigh_geo %>% 
   st_drop_geometry() %>% 
   select(GMDNR, GMDNAME, n) %>% 
-  inner_join(st_drop_geometry(st_gg21)) %>% 
+  inner_join(st_drop_geometry(st_gg)) %>% 
   select(-GMDNR) %>% 
   filter(n < 20) %>%
   arrange(n) %>% 
@@ -863,7 +775,7 @@ ssep3_gem_21_neigh_geo %>%
 ```
 
 ```{r eval=FALSE, include=FALSE}
-ssep3_gem_21_neigh_geo %>%
+ssep3_gem_neigh_geo %>%
   filter(n < 20) %>%
   qtm(borders = "red", fill = "red")
 ```
@@ -875,13 +787,11 @@ tmap_mode("view")
 ```
 
 ```{r eval=FALSE, include=FALSE}
-frq(ssep3_gem_21_neigh_geo$median_ssep3_d)
+frq(ssep3_gem_neigh_geo$median_ssep3_d)
 ```
 
 ```{r echo=FALSE}
-# tm_shape(kt21) +
-#   tm_borders() + 
-tm_shape(ssep3_gem_21_neigh_geo) +
+tm_shape(ssep3_gem_neigh_geo) +
   tm_dots(size = "n", col = "median_ssep3_d", palette = "RdYlGn",
           scale = .5,  shape = 19)
 ```
@@ -892,30 +802,30 @@ tm_shape(ssep3_gem_21_neigh_geo) +
 # join to sep3
 statpop2020_agg_sep <- st_join(statpop2020_agg, sep3, join = st_nearest_feature)
 
-# fails for unknown and unsolved reasons
-nearest <- st_nearest_feature(statpop2020_agg, sep3)
-statpop2020_agg_sep$dist3 <- st_distance(statpop2020_agg_sep, sep3[nearest, ], by_element = TRUE)
-rm(nearest, statpop2020_agg); gc()
-summary(statpop2020_agg_sep$dist3)
+# # fails for unknown and unsolved reasons
+# nearest <- st_nearest_feature(statpop2020_agg, sep3)
+# statpop2020_agg_sep$dist3 <- st_distance(statpop2020_agg_sep, sep3[nearest, ], by_element = TRUE)
+# rm(nearest, statpop2020_agg); gc()
+# summary(statpop2020_agg_sep$dist3)
 
-statpop2020_agg_sep_gem21 <- 
-  st_join(statpop2020_agg_sep, st_gg21, join = st_intersects) %>%  
+statpop2020_agg_sep_gem <- 
+  st_join(statpop2020_agg_sep, st_gg, join = st_intersects) %>%  
   relocate(egid, gisid, pop,
            ssep3, ssep3_d,
            GMDNR) 
 
-write_rds(statpop2020_agg_sep_gem21, "data/BfS-closed/SEP/statpop2020_agg_sep_gem21.Rds")
+write_rds(statpop2020_agg_sep_gem, "data/BfS-closed/SEP/statpop2020_agg_sep_gem.Rds")
 ```
 
 ```{r include=FALSE}
 rm(statpop2020_agg); gc()
 
-statpop2020_agg_sep_gem21 <- read_rds("data/BfS-closed/SEP/statpop2020_agg_sep_gem21.Rds") %>% 
+statpop2020_agg_sep_gem <- read_rds("data/BfS-closed/SEP/statpop2020_agg_sep_gem.Rds") %>% 
   st_drop_geometry()
 ```
 
 ```{r}
-ssep3_gem_21_pop <- statpop2020_agg_sep_gem21 %>% 
+ssep3_gem_pop <- statpop2020_agg_sep_gem %>% 
   select(GMDNR, ssep3, pop) %>% 
   uncount(pop) %>% 
   group_by(GMDNR) %>% 
@@ -923,10 +833,10 @@ ssep3_gem_21_pop <- statpop2020_agg_sep_gem21 %>%
             ssep3_median = median(ssep3)) %>% 
   ungroup() 
 
-# left_join(gg21, ssep3_gem_21_pop) %>% 
+# left_join(gg, ssep3_gem_pop) %>% 
 #   filter(is.na(ssep3_median))
 
-ssep3_gem_21_pop_geo <- left_join(st_gg21, ssep3_gem_21_pop) %>% 
+ssep3_gem_pop_geo <- left_join(st_gg, ssep3_gem_pop) %>% 
   filter(!is.na(ssep3_median)) %>% 
   mutate(median_ssep3_d = ntile(ssep3_median, 10)) %>% 
   mutate(median_ssep3_d = factor(median_ssep3_d,
@@ -937,76 +847,25 @@ ssep3_gem_21_pop_geo <- left_join(st_gg21, ssep3_gem_21_pop) %>%
                                             "6", "7", "8", "9", 
                                             "10th - highest")))
 
-write_rds(ssep3_gem_21_pop_geo, "data/BfS-closed/SEP/ssep3_gem_21_pop_geo.rds")
+write_rds(ssep3_gem_pop_geo, "data/BfS/ssep3_gem_pop_geo.rds")
 ```
 
 Final map using median index - bubbles scaled to number of people (STATPOP 2020)  
 
 ```{r eval=FALSE, include=FALSE}
-frq(ssep3_gem_21_pop_geo$median_ssep3_d)
+frq(ssep3_gem_pop_geo$median_ssep3_d)
 ```
 
 ```{r echo=FALSE}
-ssep3_gem_21_pop_geo %>% 
+ssep3_gem_pop_geo %>% 
   tm_shape() +
   tm_dots(size = "pop", col = "median_ssep3_d", palette = "RdYlGn",
           scale = .5,  shape = 19)
 ```
 
-## Population based averages for labour market regions
-
 ```{r include=FALSE}
-# using swisstopo due to bfs geodata errors :/
-ar_21 <- read_rds("data/swisstopo/st_ar21.Rds") %>% 
-  select(-ARNAME)
+rm(ssep3_gem_pop, ssep3_gem_neigh); gc()
 ```
-
-```{r}
-ssep3_ar_21_pop <- statpop2020_agg_sep_gem21 %>% 
-  select(GMDNR, ssep3, pop) %>% 
-  left_join(raum) %>% 
-  select(-GMDNR) %>% 
-  uncount(pop) %>% 
-  group_by(ARNR) %>% 
-  summarise(pop = n(),
-            ssep3_median = median(ssep3)) %>% 
-  ungroup() 
-
-# left_join(ar_21, ssep3_ar_21_pop) %>%
-#   filter(is.na(ssep3_median))
-
-ssep3_ar_21_pop_geo <- left_join(ar_21, ssep3_ar_21_pop) %>% 
-  filter(!is.na(ssep3_median)) %>% 
-  mutate(median_ssep3_d = ntile(ssep3_median, 10)) %>% 
-  mutate(median_ssep3_d = factor(median_ssep3_d,
-                                 levels = 1:10,
-                                 labels = c("1st - lowest", 
-                                            "2", "3", "4", 
-                                            "5th decile", 
-                                            "6", "7", "8", "9", 
-                                            "10th - highest")))
-
-write_rds(ssep3_ar_21_pop_geo, "data/BfS-closed/SEP/ssep3_ar_21_pop_geo.rds")
-```
-
-```{r include=FALSE}
-rm(statpop2020_agg_sep_gem21); gc()
-```
-
-Final map using median index - bubbles scaled to number of people (2019)  
-
-```{r eval=FALSE, include=FALSE}
-frq(ssep3_ar_21_pop_geo$median_ssep3_d)
-```
-
-```{r echo=FALSE}
-ssep3_ar_21_pop_geo %>% 
-  tm_shape() +
-  tm_dots(size = "pop", col = "median_ssep3_d", palette = "RdYlGn",
-          scale = .5,  shape = 19)
-```
-
-<!-- ----------------------------------------------------- -->
 
 # Raumgliederungen 
 
@@ -1048,9 +907,9 @@ raum <- read_xlsx("data-raw/BfS/Raumgliederungen.xlsx",
 ```
 
 ```{r include=FALSE}
-stopifnot(nrow(anti_join(raum, gg21)) == 0)
+stopifnot(nrow(anti_join(raum, gg)) == 0)
 
-gg21_merged <- gg21 %>% 
+gg21_merged <- gg %>% 
   left_join(raum) %>% 
   relocate(geometry, .after = last_col())
 
@@ -1062,11 +921,11 @@ tmap_mode("plot")
 ```{r echo=FALSE}
 frq(raum, r_urban1)
 
-tm_shape(se21, is.master = FALSE) +
+tm_shape(se, is.master = FALSE) +
   tm_fill(col = "#a7cdf2")  +
   tm_shape(gg21_merged) +
   tm_fill(col = "r_urban1")  +
-  tm_shape(kt21) +
+  tm_shape(kt) +
   tm_borders()  +
   tm_layout(
     title = "Urbanization 2021"
@@ -1080,11 +939,11 @@ Using [DEGURBA](https://ec.europa.eu/eurostat/web/degree-of-urbanisation/backgro
 ```{r echo=FALSE}
 frq(raum, r_urban2)
 
-tm_shape(se21, is.master = FALSE) +
+tm_shape(se, is.master = FALSE) +
   tm_fill(col = "#a7cdf2")  +
   tm_shape(gg21_merged) +
   tm_fill(col = "r_urban2", palette = "-Set3")  +
-  tm_shape(kt21) +
+  tm_shape(kt) +
   tm_borders()  +
   tm_layout(
     title = "Urbanization 2021"
@@ -1096,11 +955,11 @@ tm_shape(se21, is.master = FALSE) +
 ```{r echo=FALSE}
 frq(raum, r_lang)
 
-tm_shape(se21, is.master = FALSE) +
+tm_shape(se, is.master = FALSE) +
   tm_fill(col = "#a7cdf2")  +
   tm_shape(gg21_merged) +
   tm_fill(col = "r_lang")  +
-  tm_shape(kt21) +
+  tm_shape(kt) +
   tm_borders()  +
   tm_layout(
     title = "Language region 2021"
@@ -1109,8 +968,8 @@ tm_shape(se21, is.master = FALSE) +
 
 ```{r include=FALSE}
 # final link
-w_deaths_2015_2021_pop %<>% 
-  left_join(ssep3_gem_21_pop_geo %>% 
+w_deaths_2015_2020_year_fin <- w_deaths_2015_2020_year_pop %>% 
+  left_join(ssep3_gem_pop_geo %>% 
               st_drop_geometry() %>% 
               select(-pop)) %>% 
   left_join(gg21_merged %>% 
@@ -1118,24 +977,11 @@ w_deaths_2015_2021_pop %<>%
               select(-GMDNAME, -KTNAME, -BZNR, -BZNAME)
   )
 
-write_rds(w_deaths_2015_2021_pop, "data/BfS-closed/monthly_deaths/w_deaths_2015_2021_pop.Rds")
-
-w_deaths_2015_2021_ar_pop %>% 
-  left_join(
-    read_rds("data/BfS/raum.Rds") %>% 
-      select(ARNR, border)
-  ) %>% 
-  left_join(ssep3_ar_21_pop_geo %>% 
-              st_drop_geometry() %>% 
-              select(-pop)
-  )
-
-write_rds(w_deaths_2015_2021_ar_pop, "data/BfS/w_deaths_2015_2021_ar_pop.Rds")
+write_rds(w_deaths_2015_2020_year_fin, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds")
 ```
 
 ```{r eval=FALSE, include=FALSE}
-# unlink("data/BfS-closed/w_deaths_2015_2021_exp.Rds")
-# unlink("data/BfS-closed/w_deaths_2015_2021_ar.Rds")
+# unlink("data/BfS-closed/w_deaths_2015_2021_year.Rds")
 ```
 
 <!-- ----------------------------------------------------- -->
@@ -1147,7 +993,7 @@ Data from `swissdd` [package](https://github.com/politanch/swissdd).
 Linked to municipality boundaries from `2022-01-01`.  
 
 ```{r}
-st_gg22 <- read_rds("data/swisstopo/st_gg22.Rds")
+st_gg <- read_rds("data/swisstopo/st_gg.Rds")
 ```
 
 ## June vote
@@ -1190,7 +1036,7 @@ plot_nationalvotes(votedate = "2021-06-13",
 Using `GMDNR` / `mun_id` for deterministic linkage.  
 
 ```{r}
-covid_jun_gem <- st_gg22 %>%  
+covid_jun_gem <- st_gg %>%  
   left_join(covid_jun)
 ```
 
@@ -1248,7 +1094,7 @@ plot_nationalvotes(votedate = "2021-11-28",
 Using `GMDNR` / `mun_id` for deterministic linkage.  
 
 ```{r}
-covid_nov_gem <- st_gg22 %>%  
+covid_nov_gem <- st_gg %>%  
   left_join(covid_nov)
 ```
 
