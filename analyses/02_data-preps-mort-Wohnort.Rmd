@@ -335,11 +335,6 @@ w_deaths_2015_2021_exp %>%
   theme_minimal()
 ```
 
-```{r include=FALSE}
-# write_rds(w_deaths_2015_2021, "data/BfS-closed/monthly_deaths/w_deaths_2015_2021.Rds")
-write_rds(w_deaths_2015_2021_exp, "data/BfS-closed/monthly_deaths/w_deaths_2015_2021_exp.Rds")
-```
-
 # Yearly aggregation
 
 Excluding 2021.  
@@ -366,7 +361,6 @@ skim(w_deaths_2015_2020_year)
 ```
 
 ```{r include=FALSE}
-# write_rds(w_deaths_2015_2021, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds")
 write_rds(w_deaths_2015_2020_year, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds")
 ```
 
