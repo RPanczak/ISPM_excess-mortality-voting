@@ -718,10 +718,6 @@ rm(statpop2020); gc()
 ## 'nhood based averages for communities
 
 ```{r eval=FALSE}
-st_gg <- read_rds("data/swisstopo/st_gg.Rds") %>% 
-  st_transform(crs = 2056) %>% 
-  select(GMDNR)
-
 # # or with full version?
 # st_gg <- st_read("data-raw/BfS/ag-b-00.03-875-gg/ggg_2021-LV95/shp/g1g21_01072021.shp",
 #           as_tibble = TRUE)
@@ -836,7 +832,8 @@ ssep3_gem_pop <- statpop2020_agg_sep_gem %>%
 # left_join(gg, ssep3_gem_pop) %>% 
 #   filter(is.na(ssep3_median))
 
-ssep3_gem_pop_geo <- left_join(st_gg, ssep3_gem_pop) %>% 
+ssep3_gem_pop_geo <- 
+  left_join(st_gg, ssep3_gem_pop) %>% 
   filter(!is.na(ssep3_median)) %>% 
   mutate(median_ssep3_d = ntile(ssep3_median, 10)) %>% 
   mutate(median_ssep3_d = factor(median_ssep3_d,
@@ -854,9 +851,13 @@ Final map using median index - bubbles scaled to number of people (STATPOP 2020)
 
 ```{r eval=FALSE, include=FALSE}
 frq(ssep3_gem_pop_geo$median_ssep3_d)
+
+frq(st_is_valid(ssep3_gem_pop_geo))
 ```
 
-```{r echo=FALSE}
+FIXME invalid geom?  
+
+```{r eval=FALSE, include=FALSE}
 ssep3_gem_pop_geo %>% 
   tm_shape() +
   tm_dots(size = "pop", col = "median_ssep3_d", palette = "RdYlGn",
@@ -1005,7 +1006,7 @@ st_gg <- read_rds("data/swisstopo/st_gg.Rds")
 ```{r}
 covid_jun <- get_nationalvotes(votedates = "2021-06-13", 
                                geolevel = "municipality") %>% 
-  filter(name == "Bundesgesetz über die gesetzlichen Grundlagen für Verordnungen des Bundesrates zur Bewältigung der Covid-19-Epidemie (Covid-19-Gesetz)") %>% 
+  filter(str_detect(name, "Covid-19")) %>% 
   select(-name, -id)
 ```
 
@@ -1017,7 +1018,7 @@ covid_jun <- get_nationalvotes(votedates = "2021-06-13",
 
 covid_jun %<>% 
   filter(! str_detect(mun_name, fixed("Ausland"))) %>% 
-  filter(! str_detect(mun_name, fixed("l'étranger"))) %>% 
+  filter(! str_detect(mun_name, fixed("tranger"))) %>% 
   mutate(GMDNR = as.numeric(mun_id)) %>% 
   relocate(GMDNR)
 ```
@@ -1049,6 +1050,17 @@ covid_jun_gem %>%
   select(GMDNR, GMDNAME)
 ```
 
+The other way round - exist in the voting dataset but not on the map:  
+
+```{r}
+covid_jun %>% 
+  anti_join(st_gg %>%  
+              st_drop_geometry()) %>% 
+  select(GMDNR, mun_id, mun_name)
+```
+
+FIXME with [#28](https://github.com/RPanczak/ISPM_excess-mortality-voting/issues/28)  
+
 ```{r include=FALSE}
 write_rds(covid_jun, "data/voting/covid_jun.Rds")
 write_rds(covid_jun_gem, "data/voting/covid_jun_gem.Rds")
@@ -1063,7 +1075,7 @@ write_rds(covid_jun_gem, "data/voting/covid_jun_gem.Rds")
 ```{r}
 covid_nov <- get_nationalvotes(votedates = "2021-11-28", 
                                geolevel = "municipality") %>% 
-  filter(name == "Änderung des Bundesgesetzes über die gesetzlichen Grundlagen für Verordnungen des Bundesrates zur Bewältigung der Covid-19-Epidemie (Covid-19-Gesetz) (Härtefälle, Arbeitslosenversicherung, familienergänzende Kinderbetreuung, Kulturschaffende, Veranstaltungen)") %>% 
+  filter(str_detect(name, "Covid-19")) %>% 
   select(-name, -id)
 ```
 
@@ -1075,7 +1087,7 @@ covid_nov <- get_nationalvotes(votedates = "2021-11-28",
 
 covid_nov %<>% 
   filter(! str_detect(mun_name, fixed("Ausland"))) %>% 
-  filter(! str_detect(mun_name, fixed("l'étranger"))) %>% 
+  filter(! str_detect(mun_name, fixed("tranger"))) %>% 
   mutate(GMDNR = as.numeric(mun_id)) %>% 
   relocate(GMDNR)
 ```
@@ -1106,6 +1118,17 @@ covid_nov_gem %>%
   filter(is.na(jaStimmenInProzent)) %>% 
   select(GMDNR, GMDNAME)
 ```
+
+The other way round - exist in the voting dataset but not on the map:  
+
+```{r}
+covid_jun %>% 
+  anti_join(st_gg %>%  
+              st_drop_geometry()) %>% 
+  select(GMDNR, mun_id, mun_name)
+```
+
+FIXME with [#28](https://github.com/RPanczak/ISPM_excess-mortality-voting/issues/28)  
 
 ```{r include=FALSE}
 write_rds(covid_nov, "data/voting/covid_nov.Rds")
