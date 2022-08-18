@@ -434,7 +434,9 @@ pop_compare_agg <- pop_compare %>%
          perc_diff = if_else(pop_ext_poi == 0, alt, perc_diff)) %>% 
   select(-alt)
 
-gg_centr <- st_centroid(gg) %>% 
+gg_centr <- read_rds("data/BfS/gg.Rds") %>% 
+  select(GMDNR, GMDNAME) %>% 
+  st_centroid() %>% 
   left_join(pop_compare_agg)
 ```
 
