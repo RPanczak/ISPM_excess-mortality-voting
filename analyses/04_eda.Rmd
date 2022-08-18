@@ -1,0 +1,120 @@
+---
+title: "Spatial analyses of 2020-21 excess mortality in CH"
+subtitle: "EDA"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(sf, tidyverse, magrittr, scales, DT, tmap)
+
+import::from("sjmisc", "frq")
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# General checks 
+
+```{r}
+w_deaths_2015_2020_year_fin <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+  select(-(ARGRNR:ARNAME))
+```
+
+## Community codes 
+
+```{r}
+length(unique(w_deaths_2015_2020_year_fin$GMDNR))
+```
+
+<!-- ## Missings  -->
+
+```{r eval=FALSE, include=FALSE}
+sapply(w_deaths_2015_2020_year_fin, function(x) sum(is.na(x)))
+```
+
+## Zeroes
+
+```{r echo=FALSE}
+frq(w_deaths_2015_2020_year_fin, deaths == 0)
+
+summary(w_deaths_2015_2020_year_fin$deaths)
+
+ggplot(w_deaths_2015_2020_year_fin) + 
+  geom_histogram(aes(x = deaths), binwidth = 1) +
+  theme_minimal()
+```
+
+Note that small amount of pop strata is zero too!  
+
+```{r echo=FALSE}
+frq(w_deaths_2015_2020_year_fin, pop_mid_poi == 0)
+```
+
+<!-- ## Deaths > population -->
+
+```{r eval=FALSE, include=FALSE}
+frq(w_deaths_2015_2020_year_fin, deaths > pop_mid_poi)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Crude rate 
+
+```{r}
+rate <- w_deaths_2015_2020_year_fin %>% 
+  mutate(rate = 1000 * deaths / pop_mid_poi) %>% 
+  group_by(year, GMDNR, GMDNAME) %>% 
+  summarize(deaths = sum(deaths),
+            CDR = weighted.mean(rate, pop_mid_poi)) %>% 
+  ungroup() 
+```
+
+```{r echo=FALSE}
+tmap_mode("view")
+
+gg_centr <- read_rds("data/BfS/gg.Rds") %>% 
+  select(GMDNR, GMDNAME) %>% 
+  st_centroid() %>% 
+  left_join(rate %>% filter(year == 2016 | year == 2020))
+
+summary(gg_centr$CDR)
+
+tm_shape(gg_centr) +
+  tm_bubbles(size = "deaths", col = "CDR") + 
+  tm_facets(by = "year")
+```
