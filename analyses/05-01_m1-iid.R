@@ -42,9 +42,9 @@ formula_sex <-
   
   # temp solution to save time
   f(id_space, model = "iid", constr = TRUE, hyper = hyper.iid)
-# f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym)
+  # f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym)
 
-results <- list()
+gem_sex_iid <- list()
 
 for(j in c("Female", "Male")){
   
@@ -53,6 +53,8 @@ for(j in c("Female", "Male")){
   data_sex <- data %>% 
     filter(sex == j) %>% 
     select(-sex) %>% 
+    # testing df
+    filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
     as.data.frame()
   
   model_sex <- inla(formula_sex,
@@ -83,10 +85,10 @@ for(j in c("Female", "Male")){
   )
   
   name <- paste(j)
-  ar_sex_iid[[name]] <- model_sex
+  gem_sex_iid[[name]] <- model_sex
   
   rm(data_sex, model_sex); gc()
   
 }
 
-write_rds(ar_all_iid, "results/ar_all_iid.Rds")
+write_rds(gem_sex_iid, "results/gem_sex_iid.Rds")
