@@ -10,11 +10,12 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   # select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   filter(year < 2020) %>% 
+  filter(pop_mid_poi > 0) %>% 
   mutate(id_year = year - 2014,
          observed = deaths,
          id_space = as.integer(as.factor(ARNR)),
          id_age = as.integer(as.factor(age)),
-  id_age = as.integer(as.factor(age))) %>% 
+         id_age = as.integer(as.factor(age))) %>% 
   mutate(deaths = if_else(year >= 2020, NA_integer_, observed)) %>% 
   relocate(id_space) %>% 
   relocate(id_age, .after = age) %>% 
@@ -44,7 +45,7 @@ formula_sex <-
   
   # temp solution to save time
   f(id_space, model = "iid", constr = TRUE, hyper = hyper.iid)
-  # f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym)
+# f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym)
 
 gem_sex_iid <- list()
 
@@ -58,30 +59,30 @@ for(j in c("Female", "Male")){
     as.data.frame()
   
   model_sex <- inla(formula_sex,
-                      data = data_sex,
-                      family = "Poisson",
-                      # family = "zeroinflatedpoisson0",
-                      # family = "zeroinflatedpoisson1",
-                      # family = "zeroinflatednbinomial0",
-                      # family = "zeroinflatednbinomial1",
-                      verbose = TRUE,
-                      control.family = control.family,
-                      control.compute = list(config = TRUE, 
-                                             # return.marginals.predictor = TRUE,
-                                             # cpo = TRUE, 
-                                             dic = TRUE, 
-                                             waic = TRUE),
-                      control.mode = list(restart = TRUE),
-                      num.threads = threads,
-                      control.predictor = list(compute = TRUE, link = 1),
-                      control.inla = list(
-                        strategy = "simplified.laplace", # default
-                        # strategy = "adaptive",  
-                        # strategy = "gaussian",  
-                        # strategy = "laplace", #npoints = 21, 
-                        int.strategy = "ccd" # default
-                        # int.strategy = "grid", diff.logdens = 4
-                      )
+                    data = data_sex,
+                    family = "Poisson",
+                    # family = "zeroinflatedpoisson0",
+                    # family = "zeroinflatedpoisson1",
+                    # family = "zeroinflatednbinomial0",
+                    # family = "zeroinflatednbinomial1",
+                    verbose = TRUE,
+                    control.family = control.family,
+                    control.compute = list(config = TRUE, 
+                                           # return.marginals.predictor = TRUE,
+                                           # cpo = TRUE, 
+                                           dic = TRUE, 
+                                           waic = TRUE),
+                    control.mode = list(restart = TRUE),
+                    num.threads = threads,
+                    control.predictor = list(compute = TRUE, link = 1),
+                    control.inla = list(
+                      strategy = "simplified.laplace", # default
+                      # strategy = "adaptive",  
+                      # strategy = "gaussian",  
+                      # strategy = "laplace", #npoints = 21, 
+                      int.strategy = "ccd" # default
+                      # int.strategy = "grid", diff.logdens = 4
+                    )
   )
   
   name <- paste(j)
