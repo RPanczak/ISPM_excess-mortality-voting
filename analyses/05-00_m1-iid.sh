@@ -9,4 +9,4 @@
 ml vital-it
 ml R/3.6.1
 
-Rscript ~/ISPM_geo-mortality/analyses/05-01_m1-iid.R
+Rscript ~/ISPM_excess-mortality-voting/analyses/05-01_m1-iid.R
