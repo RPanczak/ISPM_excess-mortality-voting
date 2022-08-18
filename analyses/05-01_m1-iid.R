@@ -54,7 +54,7 @@ for(j in c("Female", "Male")){
     filter(sex == j) %>% 
     select(-sex) %>% 
     # testing df
-    filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
+    # filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
     as.data.frame()
   
   model_sex <- inla(formula_sex,
