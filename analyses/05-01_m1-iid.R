@@ -5,6 +5,8 @@ library(INLA)
 
 ### data 
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+  # testing df
+  # filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   filter(year < 2020) %>% 
@@ -53,8 +55,6 @@ for(j in c("Female", "Male")){
   data_sex <- data %>% 
     filter(sex == j) %>% 
     select(-sex) %>% 
-    # testing df
-    # filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
     as.data.frame()
   
   model_sex <- inla(formula_sex,
@@ -64,7 +64,7 @@ for(j in c("Female", "Male")){
                       # family = "zeroinflatedpoisson1",
                       # family = "zeroinflatednbinomial0",
                       # family = "zeroinflatednbinomial1",
-                      # verbose = TRUE,
+                      verbose = TRUE,
                       control.family = control.family,
                       control.compute = list(config = TRUE, 
                                              # return.marginals.predictor = TRUE,
