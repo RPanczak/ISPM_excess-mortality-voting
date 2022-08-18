@@ -1203,7 +1203,167 @@ write_rds(covid_nov_gem, "data/voting/covid_nov_gem.Rds")
 
 <!-- ----------------------------------------------------- -->
 
-# Mobility
+# Mobility & restrictions
+
+## Google 
+
+Google community mobility [reports](https://www.google.com/covid19/mobility/) from `COVID19` [package](https://kjhealy.github.io/covmobility/index.html).  
+
+```{r include=FALSE}
+p_load(COVID19)
+```
+
+```{r}
+gmr <- covid19(country = "CHE", level = 2, 
+               start = "2020-01-01",
+               end = "2020-12-31",
+               gmr = TRUE, verbose = FALSE) %>% 
+  select(-administrative_area_level, 
+         -administrative_area_level_1,
+         -administrative_area_level_2,
+         -administrative_area_level_3,
+         -iso_numeric, -iso_currency,
+         - iso_alpha_2, -iso_alpha_3, 
+         - latitude, -longitude, -population, 
+         - key_google_mobility, -key_apple_mobility, -key_jhu_csse, -key_nuts, -key_gadm, 
+         -(confirmed:vent)) %>% 
+  rename(KTNAME = key_local) %>% 
+  relocate(id, date, KTNAME)
+```
+
+```{r eval=FALSE, include=FALSE}
+summary(gmr$date)
+```
+
+```{r include=FALSE}
+p_unload(COVID19)
+```
+
+Data structure for example of 2020 data:  
+
+```{r echo=FALSE}
+skimr::skim(gmr)
+```
+
+Note: description of variables is described [here](https://covid19datahub.io/articles/docs.html).  
+
+Example of workplace data for canton BE  
+
+```{r echo=FALSE}
+gmr %>% 
+  filter(KTNAME == "BE") %>% 
+  ggplot(aes(x = date, 
+             y = workplaces_percent_change_from_baseline, 
+             group = KTNAME)) + 
+  geom_line(color = "darkorchid") + 
+  theme_minimal()
+```
+
+```{r eval=FALSE, include=FALSE}
+ggplot(gmr, aes(x = date, 
+                y = workplaces_percent_change_from_baseline, 
+                color = KTNAME,
+                group = KTNAME)) + 
+  geom_line() + 
+  theme_minimal()
+```
+
+## Apple 
+
+Apple's (*discontinued*) [Mobility Trend Reports](https://covid19.apple.com/mobility/) from `covmobility` [package](https://kjhealy.github.io/covmobility/index.html).  
+
+```{r}
+p_load(covmobility)
+
+data(apple_mobility)
+
+apple_mobility = apple_mobility %>% 
+  filter(country == "Switzerland") %>% 
+  filter(date <= ymd("2020-12-31")) %>% 
+  filter(geo_type == "sub-region") %>% 
+  select(-geo_type, -country, - alternative_name, -sub_region)
+```
+
+```{r eval=FALSE, include=FALSE}
+frq(apple_mobility, region)
+length(unique(apple_mobility$region))
+
+summary(apple_mobility$date)
+```
+
+Simpler dataset with a 0-Inf score for each day and canton across three trasport modes.  
+
+```{r echo=FALSE}
+frq(apple_mobility, transportation_type)
+summary(apple_mobility$score)
+```
+
+```{r eval=FALSE, include=FALSE}
+# cities possible too
+
+data(apple_mobility)
+
+frq(apple_mobility, geo_type)
+
+apple_mobility_city = apple_mobility %>% 
+  filter(country == "Switzerland") %>% 
+  filter(date <= ymd("2020-12-31")) %>% 
+  select(-country, - alternative_name) %>% 
+  filter(geo_type == "city") %>% 
+  select(-geo_type)
+```
+
+Example of data for canton BE  
+
+```{r echo=FALSE}
+apple_mobility %>% 
+  filter(region == "Canton of Bern") %>% 
+  ggplot(aes(x = date, 
+             y = score, 
+             color = transportation_type,
+             group = region)) + 
+  geom_line() + 
+  theme_minimal()
+```
+
+```{r echo=FALSE}
+# https://kjhealy.github.io/covmobility/articles/covmobility.html
+
+data = apple_mobility %>%
+  # most data is for driving
+  filter(transportation_type == "driving") %>% 
+  # two cantons with no data?
+  filter(! region %in% c("Canton of Appenzell Innerrhoden", "Canton of Uri")) %>%
+  mutate(over_under = score < 100, 
+         score = score - 100) 
+
+vec_brks <- c(-50, 0, 50)
+vec_labs <- vec_brks + 100
+
+p_load(ggforce)
+
+ggplot(data,
+       mapping = aes(x = date, y = score, 
+                     group = region, color = over_under)) + 
+  geom_hline(yintercept = 0, color = "gray40") + 
+  geom_col() + 
+  scale_y_continuous(breaks = vec_brks, labels = vec_labs) + 
+  scale_color_manual(values = c("firebrick", "steelblue")) +
+  facet_wrap(~ region, nrow = 4, ncol = 6) + 
+  guides(color = "none") + 
+  labs(x = "Date", 
+       y = "Relative Mobility", 
+       title = "Relative Trends in Apple Maps Usage for Driving, Swiss Cantons", 
+       subtitle = "Data are indexed to 100 for each city's usage on January 13th 2020", 
+       caption = "Data: Apple.") + 
+  theme_minimal()
+```
+
+Note: *Appenzell Innerrhoden* & *Uri* have zero data!  
+
+```{r include=FALSE}
+p_unload(covmobility, ggforce)
+```
 
 <!-- ----------------------------------------------------- -->
 
