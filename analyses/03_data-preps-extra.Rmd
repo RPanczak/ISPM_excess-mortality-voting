@@ -343,7 +343,7 @@ pop %>%
 
 Population in this strata was replaced by estimates of a simple linear model.  
 
-```{r include=FALSE}
+```{r}
 pop_ext_lm <- pop %>%
   filter(year != 2020) %>%
   group_by(GMDNR, age, sex) %>%
@@ -369,6 +369,90 @@ pop_complete <- pop %>%
   mutate(pop_ext_poi = if_else(year >= 2020 & is.na(pop_ext_poi), 
                                pop_ext_lm, pop_ext_poi)) %>% 
   select(-pop_ext_lm) 
+```
+
+## Differences in 2020 pops 
+
+Comparing estimates to real values
+
+```{r}
+pop_compare <- pop %>% 
+  
+  filter(year == 2020) %>% 
+  select(-year) %>% 
+  
+  # poi model with 2 missings
+  left_join(pop_ext_poi) %>% 
+  
+  # lm model
+  left_join(pop_ext_lm) %>% 
+  mutate(pop_ext_poi = if_else(is.na(pop_ext_poi), 
+                               pop_ext_lm, pop_ext_poi)) %>% 
+  select(-pop_ext_lm) %>% 
+  
+  # diffs
+  mutate(pop_diff = pop_ext_poi - pop,
+         perc_diff = (pop_diff / pop_ext_poi) * 100,
+         alt = pop * 100) %>% 
+  mutate(perc_diff = if_else(pop_diff == 0, 0, perc_diff),
+         perc_diff = if_else(pop_ext_poi == 0, alt, perc_diff)) %>% 
+  select(-alt)
+```
+
+```{r}
+frq(pop_compare, pop_ext_poi > pop) 
+frq(pop_compare, pop_ext_poi < pop) 
+frq(pop_compare, pop_ext_poi == pop)
+```
+
+```{r}
+summary(pop_compare$pop_diff)
+summary(pop_compare$perc_diff)
+```
+
+### Age group specific diffs
+
+```{r}
+ggplot(pop_compare, aes(x = pop_diff, y = perc_diff)) + 
+  geom_point(color = "darkorchid", alpha = 0.2) +
+  facet_wrap(vars(sex, age), scales = "free") + 
+  theme_light()
+```
+
+### Municipality specific diffs
+
+```{r}
+pop_compare_agg <- pop_compare %>% 
+  group_by(GMDNR) %>% 
+  summarise(pop = sum(pop),
+            pop_ext_poi = sum(pop_ext_poi)) %>% 
+  ungroup() %>% 
+  mutate(pop_diff = pop_ext_poi - pop,
+         perc_diff = (pop_diff / pop_ext_poi) * 100,
+         alt = pop * 100) %>% 
+  mutate(perc_diff = if_else(pop_diff == 0, 0, perc_diff),
+         perc_diff = if_else(pop_ext_poi == 0, alt, perc_diff)) %>% 
+  select(-alt)
+
+gg_centr <- st_centroid(gg) %>% 
+  left_join(pop_compare_agg)
+```
+
+```{r}
+summary(pop_compare_agg$pop_diff)
+summary(pop_compare_agg$perc_diff)
+
+ggplot(pop_compare_agg, aes(x = pop_diff, y = perc_diff)) + 
+  geom_point(color = "darkorchid", alpha = 0.2) +
+  theme_light()
+```
+
+```{r echo=FALSE}
+tmap_mode("view")
+
+tm_shape(gg_centr) +
+  tm_bubbles(size = "pop_diff", col = "perc_diff",
+             style = "fixed", breaks = c(-20, -10, -5, -1, 0, 1, 5, 10, 20))
 ```
 
 ## Getting mid-year pops
@@ -967,24 +1051,6 @@ tm_shape(se, is.master = FALSE) +
   )
 ```
 
-```{r include=FALSE}
-# final link
-w_deaths_2015_2020_year_fin <- w_deaths_2015_2020_year_pop %>% 
-  left_join(ssep3_gem_pop_geo %>% 
-              st_drop_geometry() %>% 
-              select(-pop)) %>% 
-  left_join(gg21_merged %>% 
-              st_drop_geometry() %>% 
-              select(-GMDNAME, -KTNAME, -BZNR, -BZNAME)
-  )
-
-write_rds(w_deaths_2015_2020_year_fin, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds")
-```
-
-```{r eval=FALSE, include=FALSE}
-# unlink("data/BfS-closed/w_deaths_2015_2021_year.Rds")
-```
-
 <!-- ----------------------------------------------------- -->
 
 # Voting
@@ -1133,4 +1199,29 @@ FIXME with [#28](https://github.com/RPanczak/ISPM_excess-mortality-voting/issues
 ```{r include=FALSE}
 write_rds(covid_nov, "data/voting/covid_nov.Rds")
 write_rds(covid_nov_gem, "data/voting/covid_nov_gem.Rds")
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Mobility
+
+<!-- ----------------------------------------------------- -->
+
+# Final link & save 
+
+```{r}
+w_deaths_2015_2020_year_fin <- w_deaths_2015_2020_year_pop %>% 
+  left_join(ssep3_gem_pop_geo %>% 
+              st_drop_geometry() %>% 
+              select(-pop)) %>% 
+  left_join(gg21_merged %>% 
+              st_drop_geometry() %>% 
+              select(-GMDNAME, -KTNAME, -BZNR, -BZNAME)
+  )
+
+write_rds(w_deaths_2015_2020_year_fin, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds")
+```
+
+```{r eval=FALSE, include=FALSE}
+# unlink("data/BfS-closed/w_deaths_2015_2021_year.Rds")
 ```
