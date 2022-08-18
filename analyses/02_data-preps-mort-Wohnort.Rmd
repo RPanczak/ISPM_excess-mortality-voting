@@ -28,8 +28,6 @@ p_load(tidyverse, magrittr,
        DT, skimr)
 
 import::from("sjmisc", "frq")
-
-renv::restore()
 ```
 
 ```{r conflicts, include = FALSE}

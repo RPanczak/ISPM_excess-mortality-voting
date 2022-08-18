@@ -30,8 +30,6 @@ p_load(tidyverse, readxl, magrittr,
 tmap_options(check.and.fix = TRUE)
 
 import::from("sjmisc", "frq")
-
-renv::restore()
 ```
 
 ```{r conflicts, include = FALSE}
@@ -954,10 +952,4 @@ write_rds(tg3o_wm_q_list, "data/nb/tg3o_wm_q_list.Rds")
 
 ```{r echo=FALSE, results='asis'}
 report::report(sessionInfo())
-```
-
-```{r include=FALSE}
-if (Sys.info()[["user"]] == "panczak") {
-  renv::snapshot(prompt = FALSE)
-}
 ```
