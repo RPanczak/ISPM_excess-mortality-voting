@@ -5,20 +5,19 @@ library(INLA)
 
 ### data 
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
-  # select(-(ARGRNR:ARNAME)) %>% 
+  select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
+  filter(year < 2020) %>% 
   mutate(id_year = year - 2014,
          observed = deaths,
-         id_space = as.integer(as.factor(ARNR)),
-         id_age = as.integer(as.factor(age))) %>% 
+         id_space = as.integer(as.factor(GMDNR)),
+         id_age = as.integer(as.factor(age)),
+  id_age = as.integer(as.factor(age))) %>% 
   mutate(deaths = if_else(year >= 2020, NA_integer_, observed)) %>% 
   relocate(id_space) %>% 
   relocate(id_age, .after = age) %>% 
   relocate(observed, .after = deaths) %>% 
   relocate(id_year, .after = year) 
-
-groups <- read_rds("data/groups.Rds") %>% 
-  filter(age != "<40")
 
 ### INLA setup
 
@@ -34,6 +33,7 @@ threads = parallel::detectCores()
 ### Age adjusted, sex stratified
 
 formula_sex <-
+  
   deaths ~ 1 + offset(log(pop_mid_poi)) + 
   
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
