@@ -5,12 +5,12 @@ library(INLA)
 
 ### data 
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
-  # testing df
+  # testing df with two spatial units
   # filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   filter(year < 2020) %>% 
-  # strata with double zeroes seem to be crashing
+  # strata with double zeroes seem to be crashing models?
   filter(pop_mid_poi > 0) %>% 
   mutate(id_year = year - 2014,
          observed = deaths,
@@ -44,9 +44,7 @@ formula_sex <-
   
   f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) +
   
-  # temp solution to save time
   f(id_space, model = "iid", constr = TRUE, hyper = hyper.iid)
-# f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym)
 
 gem_sex_iid <- list()
 
