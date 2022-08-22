@@ -11,17 +11,7 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   filter(age != "<40") %>% 
   filter(year < 2020) %>% 
   # strata with double zeroes seem to be crashing models?
-  filter(pop_mid_poi > 0) %>% 
-  mutate(id_year = year - 2014,
-         observed = deaths,
-         id_space = as.integer(as.factor(GMDNR)),
-         id_age = as.integer(as.factor(age)),
-         id_age = as.integer(as.factor(age))) %>% 
-  mutate(deaths = if_else(year >= 2020, NA_integer_, observed)) %>% 
-  relocate(id_space) %>% 
-  relocate(id_age, .after = age) %>% 
-  relocate(observed, .after = deaths) %>% 
-  relocate(id_year, .after = year) 
+  filter(pop_mid_poi > 0) 
 
 ### INLA setup
 
