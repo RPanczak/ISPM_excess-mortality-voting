@@ -348,10 +348,30 @@ w_deaths_2015_2020_year <- w_deaths_2015_2021_exp %>%
   ungroup()
 ```
 
+## Miscelaneous ID variables for INLA
+
+```{r}
+gg <- read_rds("data/BfS/gg.Rds") %>% 
+  sf::st_drop_geometry() %>% 
+  select(GMDNR, id_space)
+
+w_deaths_2015_2020_year %<>% 
+  left_join(gg) %>% 
+  mutate(id_year = year - 2014,
+         id_age = as.integer(as.factor(age)),
+         id_2015 = if_else(year == 2015, 1, 0)) %>% 
+  relocate(id_space, .after = GMDNR) %>% 
+  relocate(id_age, .after = age) %>% 
+  relocate(id_year, .after = year) %>% 
+  relocate(id_2015, .after = id_year) 
+```
+
 ## Description of data  
 
 ```{r echo=FALSE}
-report::report(w_deaths_2015_2020_year)
+w_deaths_2015_2020_year %>% 
+  select(-starts_with("id_")) %>% 
+  report::report()
 ```
 
 ```{r echo=FALSE}
