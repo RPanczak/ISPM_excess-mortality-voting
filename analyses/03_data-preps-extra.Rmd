@@ -364,9 +364,9 @@ pop_complete <- pop %>%
   mutate(pop_ext_poi = if_else(year < 2020, 
                                pop, pop_ext_poi)) %>% 
   
-  # replacing poi missings with lm
+  # replacing 2 poi missings with lm
   left_join(pop_ext_lm) %>% 
-  mutate(pop_ext_poi = if_else(year >= 2020 & is.na(pop_ext_poi), 
+  mutate(pop_ext_poi = if_else(year == 2020 & is.na(pop_ext_poi), 
                                pop_ext_lm, pop_ext_poi)) %>% 
   select(-pop_ext_lm) 
 ```
@@ -536,17 +536,21 @@ w_deaths_2015_2020_year_pop <- read_rds("data/BfS-closed/monthly_deaths/w_deaths
 ```
 
 ```{r eval=FALSE, include=FALSE}
-table(w_deaths_2015_2020_year_pop$year)
+frq(w_deaths_2015_2020_year_pop, year)
 summary(w_deaths_2015_2020_year_pop$pop_mid_poi)
 ```
 
 ## Deaths > pop problem
 
 ```{r}
+frq(w_deaths_2015_2020_year_pop, observed > pop_mid_poi)
+```
+
+```{r}
 surplus <- w_deaths_2015_2020_year_pop %>% 
-  filter(deaths > pop_mid_poi) %>% 
+  filter(observed > pop_mid_poi) %>% 
   arrange(GMDNR, year) %>% 
-  mutate(difference = pop_mid_poi - deaths)
+  mutate(difference = pop_mid_poi - observed)
 ```
 
 There are `r number(nrow(surplus))` strata from `r number(length(unique(surplus$GMDNR)))`  communities where count of deaths is larger than count of pop. The difference is always 1 in plus over pop 0.   
@@ -561,7 +565,7 @@ surplus %>%
 
 ```{r}
 w_deaths_2015_2020_year_pop %<>% 
-  mutate(pop_mid_poi = if_else(deaths > pop_mid_poi, deaths, pop_mid_poi))
+  mutate(pop_mid_poi = if_else(observed > pop_mid_poi, observed, pop_mid_poi))
 ```
 
 ```{r eval=FALSE, include=FALSE}
