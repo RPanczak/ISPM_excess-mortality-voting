@@ -11,7 +11,6 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   # filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
   # select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
-  filter(year < 2020) %>% 
   # strata with double zeroes seem to be crashing
   filter(pop_mid_poi > 0) 
 
