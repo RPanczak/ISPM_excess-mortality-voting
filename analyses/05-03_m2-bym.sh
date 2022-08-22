@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name="INLA bym"
+#SBATCH --job-name="i-bym"
 #SBATCH --cpus-per-task=64
 #SBATCH --mem-per-cpu=1G
 #SBATCH --time=48:00:00

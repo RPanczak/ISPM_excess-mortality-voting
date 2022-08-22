@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name="INLA iid"
+#SBATCH --job-name="i-iid"
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=2G
 #SBATCH --time=02:00:00
