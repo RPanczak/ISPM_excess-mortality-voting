@@ -8,8 +8,7 @@ library(INLA)
 ### data 
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
   # testing df
-  # filter(GMDNAME %in% c("Unterschächen", "Bern")) %>% 
-  # select(-(ARGRNR:ARNAME)) %>%
+  select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing
   filter(pop_mid_poi > 0) 
@@ -50,8 +49,8 @@ for(j in c("Female", "Male")){
   
   model_sex <- inla(formula_sex,
                     data = data_sex,
-                    family = "Poisson",
-                    # family = "zeroinflatedpoisson0",
+                    # family = "Poisson",
+                    family = "zeroinflatedpoisson0",
                     # family = "zeroinflatedpoisson1",
                     # family = "zeroinflatednbinomial0",
                     # family = "zeroinflatednbinomial1",
@@ -59,7 +58,7 @@ for(j in c("Female", "Male")){
                     control.family = control.family,
                     control.compute = list(config = TRUE, 
                                            # return.marginals.predictor = TRUE,
-                                           # cpo = TRUE, 
+                                           cpo = TRUE,
                                            dic = TRUE, 
                                            waic = TRUE),
                     control.mode = list(restart = TRUE),
