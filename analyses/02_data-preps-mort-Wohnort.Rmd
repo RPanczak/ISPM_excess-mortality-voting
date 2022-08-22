@@ -359,7 +359,10 @@ w_deaths_2015_2020_year %<>%
   left_join(gg) %>% 
   mutate(id_year = year - 2014,
          id_age = as.integer(as.factor(age)),
-         id_2015 = if_else(year == 2015, 1, 0)) %>% 
+         id_2015 = if_else(year == 2015, 1, 0), 
+         observed = deaths, 
+         deaths = if_else(year == 2020, NA_integer_, deaths)) %>% 
+  relocate(observed, .after = deaths) %>% 
   relocate(id_space, .after = GMDNR) %>% 
   relocate(id_age, .after = age) %>% 
   relocate(id_year, .after = year) %>% 

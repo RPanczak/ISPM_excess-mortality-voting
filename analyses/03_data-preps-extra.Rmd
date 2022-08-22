@@ -1274,9 +1274,11 @@ ggplot(gmr, aes(x = date,
 
 Apple's (*discontinued*) [Mobility Trend Reports](https://covid19.apple.com/mobility/) from `covmobility` [package](https://kjhealy.github.io/covmobility/index.html).  
 
-```{r}
+```{r include=FALSE}
 p_load(covmobility)
+```
 
+```{r}
 data(apple_mobility)
 
 apple_mobility = apple_mobility %>% 
@@ -1284,6 +1286,10 @@ apple_mobility = apple_mobility %>%
   filter(date <= ymd("2020-12-31")) %>% 
   filter(geo_type == "sub-region") %>% 
   select(-geo_type, -country, - alternative_name, -sub_region)
+```
+
+```{r include=FALSE}
+p_unload(covmobility)
 ```
 
 ```{r eval=FALSE, include=FALSE}
