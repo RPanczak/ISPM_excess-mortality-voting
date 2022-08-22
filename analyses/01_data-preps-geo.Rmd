@@ -133,9 +133,11 @@ tm_shape(se, is.master = FALSE) +
   tm_borders()
 ```
 
-## Alternative lakes dataset
+<!-- ----------------------------------------------------- -->
 
-Coming from Kartengeometrien ThemaKart - Set «PRO» 2019 available [here](https://www.bfs.admin.ch/bfs/de/home/statistiken/kataloge-datenbanken/karten.assetdetail.7546178.html).
+# Alternative lakes dataset
+
+Coming from Kartengeometrien ThemaKart - Set «PRO» 2019 available [from BfS](https://www.bfs.admin.ch/bfs/de/home/statistiken/kataloge-datenbanken/karten.assetdetail.7546178.html).
 
 ```{r}
 se_alt <- 
@@ -161,6 +163,8 @@ write_rds(se_alt, "data/BfS/se_alt.Rds")
 
 st_write(se_alt, "data/geo/BfS.gpkg", layer = "se_alt", append = FALSE)
 ```
+
+<!-- ----------------------------------------------------- -->
 
 # swisstopo geodata 2022
 
@@ -449,6 +453,15 @@ st_gg %<>%
   arrange(GMDNR)
 ```
 
+## ID variable for INLA
+
+```{r}
+gg %<>% 
+  mutate(id_space = as.integer(as.factor(GMDNR))) %>% 
+  relocate(id_space)
+```
+
+
 ```{r echo=FALSE, include=FALSE}
 # should be exact overlap
 stopifnot(
@@ -649,17 +662,14 @@ Based on queen connectivity between the areas. Uses 'normal' municipality bounda
 ## Weights
 
 ```{r}
-gg_wm_q <- poly2nb(gg, queen = TRUE, row.names = gg$GMDNR)
+gg_wm_q <- poly2nb(gg, queen = TRUE, row.names = gg$id_space)
 
 gg_wm_q
 summary(gg_wm_q)
-
-write_rds(gg_wm_q, "data/nb/gg_wm_q.Rds")
 ```
 
-INLA specific:  
-
-```{r}
+```{r eval=FALSE, include=FALSE}
+write_rds(gg_wm_q, "data/nb/gg_wm_q.Rds")
 nb2INLA("data/nb/gg_wm_q.adj", gg_wm_q)
 ```
 
@@ -864,12 +874,6 @@ write_rds(gg_wm_q_list, "data/nb/gg_wm_q_list.Rds")
 
 Based on queen connectivity between the productive areas. Uses 'tg3o' simplified municipality boundaries so it breaks some connections in the mountainous regions. Few disconnected areas are connected back, mostly when tehre is a train tunnel or a year round road pass connection.
 
-```{r eval=FALSE, include=FALSE}
-# results will differ if not multipart!
-# tg3o %<>%
-#   st_cast("POLYGON")
-```
-
 ## Weights
 
 ```{r include=FALSE}
@@ -889,27 +893,6 @@ write_rds(tg3o_wm_q, "data/nb/tg3o_wm_q.Rds")
 nb2INLA("data/nb/tg3o_wm_q.adj", tg3o_wm_q) 
 ```
 
-<!-- ### Manual correction -->
-
-<!-- Adding missing links.     -->
-
-```{r eval=FALSE, include=FALSE}
-# **Note: needs to be run outside or RStudio!**  
-setwd("C:/projects/ISPM_geo-mortality")
-tg3o <- readr::read_rds("data/BfS/tg3o.Rds")
-tg3o_wm_q <- readr::read_rds("data/nb/tg3o_wm_q.Rds")
-tg3o_wm_q_cor <- spdep::edit.nb(tg3o_wm_q, polys = as(tg3o, "Spatial"))
-
-readr::write_rds(tg3o_wm_q_cor, "data/nb/tg3o_wm_q_cor.Rds")
-```
-
-```{r eval=FALSE, include=FALSE}
-tg3o_wm_q_cor <- read_rds("data/nb/tg3o_wm_q_cor.Rds")
-
-# tg3o_wm_q
-summary(tg3o_wm_q)
-```
-
 ## All together
 
 Original connectivity, notice disconnected 'islands' of polygons:
@@ -921,6 +904,8 @@ plot(tg3o_raw_wm_q, coordinates(as_Spatial(tg3o_raw)),
      pch = 19, cex = 0.6, add = TRUE, col = "red")
 ```
 
+Forcing extra connections  
+
 ```{r eval=FALSE, include=FALSE}
 plot(as_Spatial(tg3o), col = "lightgrey") 
 
@@ -928,14 +913,14 @@ plot(tg3o_wm_q, coordinates(as_Spatial(tg3o_nb)),
      pch = 19, cex = 0.6, add = TRUE, col = "red")
 ```
 
-Forcing extra connections; clearer when only the differences are shown:
+Clearer when only the differences are shown  
 
 ```{r echo=FALSE}
-diffs <- diffnb(tg3o_wm_q, tg3o_orig_wm_q, verbose = NULL)
+diffs <- diffnb(tg3o_wm_q, tg3o_raw_wm_q, verbose = NULL)
 
 plot(as_Spatial(tg3o), col = "lightgrey") 
 
-plot(diffs, coordinates(as_Spatial(tg3o_nb)), 
+plot(diffs, coordinates(as_Spatial(tg3o)), 
      points = FALSE, add = TRUE, col = "red")
 ```
 
@@ -944,6 +929,8 @@ plot(diffs, coordinates(as_Spatial(tg3o_nb)),
 ```{r}
 tg3o_wm_q_list <- nb2listw(tg3o_wm_q, style = "W", zero.policy = TRUE)
 write_rds(tg3o_wm_q_list, "data/nb/tg3o_wm_q_list.Rds")
+
+nb2INLA("data/nb/tg3o_wm_q.adj", tg3o_wm_q) 
 ```
 
 <!-- ----------------------------------------------------- -->

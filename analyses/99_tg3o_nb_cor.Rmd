@@ -1,0 +1,18 @@
+### Manual correction
+
+Adding missing links.
+
+```{r eval=FALSE, include=FALSE}
+# **Note: needs to be run outside or RStudio!**  
+setwd("C:/projects/ISPM_geo-mortality")
+tg3o <- readr::read_rds("data/BfS/tg3o.Rds")
+tg3o_wm_q <- readr::read_rds("data/nb/tg3o_wm_q.Rds")
+tg3o_wm_q_cor <- spdep::edit.nb(tg3o_wm_q, polys = as(tg3o, "Spatial"))
+
+readr::write_rds(tg3o_wm_q_cor, "data/nb/tg3o_wm_q_cor.Rds")
+```
+
+```{r}
+# tg3o_wm_q
+summary(tg3o_wm_q)
+```
