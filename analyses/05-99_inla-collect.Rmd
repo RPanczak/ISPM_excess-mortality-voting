@@ -1,5 +1,5 @@
 ---
-title: "Spatial analyses of 2020-21 excess mortality in CH"
+title: "2020 excess mortality & voting patterns in CH"
 subtitle: "Analyses using GEM"
 author: "Radek Panczak"
 date: "`r Sys.Date()`"
@@ -59,6 +59,11 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing
   filter(pop_mid_poi > 0) 
+
+data_male <- data %>% 
+  filter(sex == "Male") %>% 
+  select(-sex) %>% 
+  as.data.frame()
 ```
 
 ## Spatial 
@@ -72,18 +77,11 @@ gg <- readRDS("data/BfS/gg.Rds")
 
 # IID stratified modelling
 
-```{r}
-data_male <- data %>% 
-  filter(sex == "Male") %>% 
-  select(-sex) %>% 
-  as.data.frame()
-
-gem_sex_iid <- read_rds("results/gem_sex_iid.Rds")
-```
-
 ## Model 
 
 ```{r}
+gem_sex_iid <- read_rds("results/gem_sex_iid.Rds")
+
 iid_male <- gem_sex_iid$Male
 summary(iid_male)
 iid_male$summary.hyperpar
@@ -144,7 +142,7 @@ iid_male_fit %>%
   ggplot(aes(x = year, fill = age, group = age)) + 
   geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
   geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed), color = "grey40", alpha = 0.5) + 
+  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
   # facet_wrap(vars(split), scales = "free_x") +
   xlab("") + ylab("predicted/observed") +
   theme_minimal()
@@ -160,6 +158,8 @@ iid_male_fit_agg <- iid_male_fit %>%
             predicted = as.integer(sum(`0.5quant`))) %>% 
   ungroup() %>% 
   mutate(diff = observed - predicted)
+
+iid_male_fit_agg
 
 iid_male_fit_agg %>% 
   ggplot(aes(x = year)) + 
@@ -208,3 +208,139 @@ sum(-log(iid_male$cpo$cpo), na.rm = TRUE)
 ```
 
 
+<!-- ----------------------------------------------------- -->
+
+# BYM stratified modelling
+
+```{r}
+gem_sex_bym <- read_rds("results/gem_sex_bym.Rds")
+```
+
+## Model 
+
+```{r}
+bym_male <- gem_sex_bym$Male
+summary(bym_male)
+bym_male$summary.hyperpar
+```
+
+## Year 
+
+```{r}
+bym_male_year <- bym_male$summary.random$id_year %>% 
+  mutate(ID = ID + 2014, 
+         `0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`))
+
+bym_male_year %>% 
+  ggplot(aes(y = ID)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  theme_minimal() + 
+  scale_x_log10()
+```
+
+## Age 
+
+```{r}
+bym_male_age <- bym_male$summary.random$id_age %>% 
+  mutate(`0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`))
+
+bym_male_age %>% 
+  ggplot(aes(y = ID)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  theme_minimal() + 
+  scale_x_log10()
+```
+
+## Observed vs predicted
+
+```{r}
+bym_male_fit <- bind_cols(
+  data_male,
+  bym_male$summary.fitted.values
+) %>% 
+  mutate(split = ifelse(year < 2020, "Pre", "Pand"))
+
+ggplot(bym_male_fit) + 
+  geom_point(aes(x = `0.5quant`, y = observed), alpha = 0.22) + 
+  facet_wrap(vars(split)) +
+  xlab("predicted") + 
+  theme_minimal()
+```
+
+## Example of Lugano 
+
+```{r}
+bym_male_fit %>% 
+  filter(GMDNAME == "Lugano") %>% 
+  ggplot(aes(x = year, fill = age, group = age)) + 
+  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
+  geom_line(aes(y = `0.5quant`, color = age)) + 
+  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
+  # facet_wrap(vars(split), scales = "free_x") +
+  xlab("") + ylab("predicted/observed") +
+  theme_minimal()
+```
+
+## Aggregating all observed and pred over time
+
+```{r}
+bym_male_fit_agg <- bym_male_fit %>% 
+  group_by(year) %>% 
+  summarise(observed = sum(observed),
+            # population = sum(population),
+            predicted = as.integer(sum(`0.5quant`))) %>% 
+  ungroup() %>% 
+  mutate(diff = observed - predicted)
+
+bym_male_fit_agg
+
+bym_male_fit_agg %>% 
+  ggplot(aes(x = year)) + 
+  geom_line(aes(y = predicted)) + 
+  geom_line(aes(y = observed), col = "darkorchid", alpha = 0.5) + 
+  # facet_wrap(vars(split), scales = "free_x") +
+  xlab("") + ylab("predicted/observed") +
+  theme_minimal()
+```
+
+## Region effect 
+
+```{r}
+bym_male_space <-
+  gg %>%
+  # tg3o %>%
+  left_join(data_male %>% select(GMDNR, id_space) %>% distinct()) %>%
+  left_join(bym_male$summary.random$id_space %>%
+              mutate(s1_l = exp(`0.025quant`),
+                     s1_m = exp(`0.5quant`),
+                     s1_u = exp(`0.975quant`)) %>% 
+              select(ID, starts_with("s1")) %>% 
+              slice(1:nrow(data_male %>% select(GMDNR, id_space) %>% distinct())),
+            by = c("id_space" = "ID")) # %>%
+
+tm_shape(bym_male_space) +
+  tm_fill("s1_m")
+
+# tm_shape(bym_male_space) +
+#   tm_fill("s2_m")
+```
+
+## Performance 
+
+```{r}
+marg.variance <- inla.tmarginal(function(x) 1/x,
+                                bym_male$marginals.hyperpar$"Precision for id_space")
+inla.zmarginal(marg.variance)
+
+rm(marg.variance)
+```
+
+```{r eval=FALSE, include=FALSE}
+table(bym_male$cpo$failure > 0)
+sum(-log(bym_male$cpo$cpo), na.rm = TRUE)
+# bym_male$cpo$pit
+```
