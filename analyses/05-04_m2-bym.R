@@ -40,46 +40,53 @@ gem_sex_bym <- list()
 
 for(j in c("Female", "Male")){
   
-  print(j)
-  
   data_sex <- data %>% 
     filter(sex == j) %>% 
     select(-sex) %>% 
     as.data.frame()
   
-  model_sex <- inla(formula_sex,
-                    data = data_sex,
-                    # family = "Poisson",
-                    # family = "zeroinflatedpoisson0",
-                    # family = "zeroinflatedpoisson1",
-                    # family = "nbinomial",
-                    # family = "zeroinflatednbinomial0",
-                    family = "zeroinflatednbinomial1",
-                    verbose = TRUE,
-                    control.family = control.family,
-                    control.compute = list(config = TRUE, 
-                                           # return.marginals.predictor = TRUE,
-                                           cpo = TRUE,
-                                           dic = TRUE, 
-                                           waic = TRUE),
-                    control.mode = list(restart = TRUE),
-                    num.threads = threads,
-                    control.predictor = list(compute = TRUE, link = 1),
-                    control.inla = list(
-                      strategy = "simplified.laplace", # default
-                      # strategy = "adaptive",  
-                      # strategy = "gaussian",  
-                      # strategy = "laplace", #npoints = 21, 
-                      int.strategy = "ccd" # default
-                      # int.strategy = "grid", diff.logdens = 4
-                    )
-  )
-  
-  name <- paste(j)
-  gem_sex_bym[[name]] <- model_sex
-  
-  rm(data_sex, model_sex); gc()
+  # also "nbinomial", "zeroinflatednbinomial0", "zeroinflatednbinomial1"?
+  for(f in c("Poisson", "zeroinflatedpoisson0", "zeroinflatedpoisson1")) {
+    
+    print(j)
+    print(f)
+    
+    
+    model_sex <- inla(formula_sex,
+                      data = data_sex,
+                      family = "Poisson",
+                      # family = "zeroinflatedpoisson0",
+                      # family = "zeroinflatedpoisson1",
+                      # family = "nbinomial",
+                      # family = "zeroinflatednbinomial0",
+                      # family = "zeroinflatednbinomial1",
+                      verbose = TRUE,
+                      control.family = control.family,
+                      control.compute = list(config = TRUE, 
+                                             # return.marginals.predictor = TRUE,
+                                             cpo = TRUE,
+                                             dic = TRUE, 
+                                             waic = TRUE),
+                      control.mode = list(restart = TRUE),
+                      num.threads = threads,
+                      control.predictor = list(compute = TRUE, link = 1),
+                      control.inla = list(
+                        strategy = "simplified.laplace", # default
+                        # strategy = "adaptive",  
+                        # strategy = "gaussian",  
+                        # strategy = "laplace", #npoints = 21, 
+                        int.strategy = "ccd" # default
+                        # int.strategy = "grid", diff.logdens = 4
+                      )
+    )
+    
+    name <- paste(j)
+    gem_sex_bym[[name]] <- model_sex
+    
+    rm(model_sex); gc()
+    
+  }
+  rm(data_sex); gc()
   
 }
-
 write_rds(gem_sex_bym, "results/gem_sex_bym.Rds")
