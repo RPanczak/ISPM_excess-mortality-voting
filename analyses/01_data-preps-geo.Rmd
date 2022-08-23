@@ -1,5 +1,5 @@
 ---
-title: "Excess mortality & voting patterns in CH"
+title: "2020 excess mortality & voting patterns in CH"
 subtitle: "Geodata preparation"
 pagetitle: "Excess & voting: geodata"
 author: "Radek Panczak"
