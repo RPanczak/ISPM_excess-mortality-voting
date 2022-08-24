@@ -75,13 +75,72 @@ gg <- readRDS("data/BfS/gg.Rds")
 
 <!-- ----------------------------------------------------- -->
 
+# Model comparison
+
+```{r}
+gem_sex_iid <- read_rds("results/gem_sex_iid.Rds")
+gem_sex_bym <- read_rds("results/gem_sex_bym.Rds")
+```
+
+## DIC 
+
+```{r}
+dotchart(c(
+  gem_sex_iid$Female_Poisson$dic$dic,
+  gem_sex_iid$Female_zeroinflatedpoisson0$dic$dic,
+  gem_sex_iid$Female_zeroinflatedpoisson1$dic$dic,
+  gem_sex_bym$Female_Poisson$dic$dic,
+  gem_sex_bym$Female_zeroinflatedpoisson0$dic$dic,
+  gem_sex_bym$Female_zeroinflatedpoisson1$dic$dic
+),
+labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
+           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
+
+dotchart(c(
+  gem_sex_iid$Male_Poisson$dic$dic,
+  gem_sex_iid$Male_zeroinflatedpoisson0$dic$dic,
+  gem_sex_iid$Male_zeroinflatedpoisson1$dic$dic,
+  gem_sex_bym$Male_Poisson$dic$dic,
+  gem_sex_bym$Male_zeroinflatedpoisson0$dic$dic,
+  gem_sex_bym$Male_zeroinflatedpoisson1$dic$dic
+),
+labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
+           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
+```
+
+## WAIC 
+
+```{r}
+dotchart(c(
+  gem_sex_iid$Female_Poisson$waic$waic,
+  gem_sex_iid$Female_zeroinflatedpoisson0$waic$waic,
+  gem_sex_iid$Female_zeroinflatedpoisson1$waic$waic,
+  gem_sex_bym$Female_Poisson$waic$waic,
+  gem_sex_bym$Female_zeroinflatedpoisson0$waic$waic,
+  gem_sex_bym$Female_zeroinflatedpoisson1$waic$waic
+),
+labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
+           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
+
+dotchart(c(
+  gem_sex_iid$Male_Poisson$waic$waic,
+  gem_sex_iid$Male_zeroinflatedpoisson0$waic$waic,
+  gem_sex_iid$Male_zeroinflatedpoisson1$waic$waic,
+  gem_sex_bym$Male_Poisson$waic$waic,
+  gem_sex_bym$Male_zeroinflatedpoisson0$waic$waic,
+  gem_sex_bym$Male_zeroinflatedpoisson1$waic$waic
+),
+labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
+           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
+```
+
+<!-- ----------------------------------------------------- -->
+
 # IID stratified modelling
 
 ## Model 
 
 ```{r}
-gem_sex_iid <- read_rds("results/gem_sex_iid.Rds")
-
 iid_male <- gem_sex_iid$Male
 summary(iid_male)
 iid_male$summary.hyperpar
@@ -211,10 +270,6 @@ sum(-log(iid_male$cpo$cpo), na.rm = TRUE)
 <!-- ----------------------------------------------------- -->
 
 # BYM stratified modelling
-
-```{r}
-gem_sex_bym <- read_rds("results/gem_sex_bym.Rds")
-```
 
 ## Model 
 
