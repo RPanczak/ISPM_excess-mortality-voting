@@ -64,6 +64,11 @@ data_male <- data %>%
   filter(sex == "Male") %>% 
   select(-sex) %>% 
   as.data.frame()
+
+data_female <- data %>% 
+  filter(sex == "Female") %>% 
+  select(-sex) %>% 
+  as.data.frame()
 ```
 
 ## Spatial 
@@ -89,6 +94,7 @@ dotchart(c(
   gem_sex_iid$Female_Poisson$dic$dic,
   gem_sex_iid$Female_zeroinflatedpoisson0$dic$dic,
   gem_sex_iid$Female_zeroinflatedpoisson1$dic$dic,
+  
   gem_sex_bym$Female_Poisson$dic$dic,
   gem_sex_bym$Female_zeroinflatedpoisson0$dic$dic,
   gem_sex_bym$Female_zeroinflatedpoisson1$dic$dic
@@ -100,6 +106,7 @@ dotchart(c(
   gem_sex_iid$Male_Poisson$dic$dic,
   gem_sex_iid$Male_zeroinflatedpoisson0$dic$dic,
   gem_sex_iid$Male_zeroinflatedpoisson1$dic$dic,
+  
   gem_sex_bym$Male_Poisson$dic$dic,
   gem_sex_bym$Male_zeroinflatedpoisson0$dic$dic,
   gem_sex_bym$Male_zeroinflatedpoisson1$dic$dic
@@ -113,25 +120,35 @@ labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
 ```{r}
 dotchart(c(
   gem_sex_iid$Female_Poisson$waic$waic,
-  gem_sex_iid$Female_zeroinflatedpoisson0$waic$waic,
+  # gem_sex_iid$Female_zeroinflatedpoisson0$waic$waic,
   gem_sex_iid$Female_zeroinflatedpoisson1$waic$waic,
+  
   gem_sex_bym$Female_Poisson$waic$waic,
-  gem_sex_bym$Female_zeroinflatedpoisson0$waic$waic,
+  # gem_sex_bym$Female_zeroinflatedpoisson0$waic$waic,
   gem_sex_bym$Female_zeroinflatedpoisson1$waic$waic
 ),
-labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
-           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
+labels = c("IID Poisson", 
+           # "IID ZI Poison 0", 
+           "IID ZI Poison 1",
+           "BYM Poisson", 
+           # "BYM ZI Poison 0", 
+           "BYM ZI Poison 1"))
 
 dotchart(c(
   gem_sex_iid$Male_Poisson$waic$waic,
-  gem_sex_iid$Male_zeroinflatedpoisson0$waic$waic,
+  # gem_sex_iid$Male_zeroinflatedpoisson0$waic$waic,
   gem_sex_iid$Male_zeroinflatedpoisson1$waic$waic,
+  
   gem_sex_bym$Male_Poisson$waic$waic,
-  gem_sex_bym$Male_zeroinflatedpoisson0$waic$waic,
+  # gem_sex_bym$Male_zeroinflatedpoisson0$waic$waic,
   gem_sex_bym$Male_zeroinflatedpoisson1$waic$waic
 ),
-labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
-           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
+labels = c("IID Poisson", 
+           # "IID ZI Poison 0", 
+           "IID ZI Poison 1",
+           "BYM Poisson", 
+           # "BYM ZI Poison 0", 
+           "BYM ZI Poison 1"))
 ```
 
 <!-- ----------------------------------------------------- -->

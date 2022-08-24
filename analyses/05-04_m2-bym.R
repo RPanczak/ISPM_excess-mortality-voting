@@ -46,7 +46,8 @@ for(j in c("Female", "Male")){
     as.data.frame()
   
   # also "nbinomial", "zeroinflatednbinomial0", "zeroinflatednbinomial1"?
-  for(f in c("Poisson", "zeroinflatedpoisson0", "zeroinflatedpoisson1")) {
+  # for(f in c("Poisson", "zeroinflatedpoisson0", "zeroinflatedpoisson1")) {
+  for(f in c("Poisson", "zeroinflatedpoisson1")) {
     
     print(j)
     print(f)
