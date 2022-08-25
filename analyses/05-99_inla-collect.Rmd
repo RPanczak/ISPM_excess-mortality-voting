@@ -1,6 +1,6 @@
 ---
 title: "2020 excess mortality & voting patterns in CH"
-subtitle: "Analyses using GEM"
+subtitle: "INLA models using GEM"
 author: "Radek Panczak"
 date: "`r Sys.Date()`"
 output:
@@ -91,41 +91,13 @@ gem_sex_bym <- read_rds("results/gem_sex_bym.Rds")
 
 ```{r}
 dotchart(c(
-  gem_sex_iid$Female_Poisson$dic$dic,
-  gem_sex_iid$Female_zeroinflatedpoisson0$dic$dic,
-  gem_sex_iid$Female_zeroinflatedpoisson1$dic$dic,
+  gem_sex_iid$Female$Poisson$dic$dic,
+  # gem_sex_iid$Female$zeroinflatedpoisson0$dic$dic,
+  gem_sex_iid$Female$zeroinflatedpoisson1$dic$dic,
   
-  gem_sex_bym$Female_Poisson$dic$dic,
-  gem_sex_bym$Female_zeroinflatedpoisson0$dic$dic,
-  gem_sex_bym$Female_zeroinflatedpoisson1$dic$dic
-),
-labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
-           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
-
-dotchart(c(
-  gem_sex_iid$Male_Poisson$dic$dic,
-  gem_sex_iid$Male_zeroinflatedpoisson0$dic$dic,
-  gem_sex_iid$Male_zeroinflatedpoisson1$dic$dic,
-  
-  gem_sex_bym$Male_Poisson$dic$dic,
-  gem_sex_bym$Male_zeroinflatedpoisson0$dic$dic,
-  gem_sex_bym$Male_zeroinflatedpoisson1$dic$dic
-),
-labels = c("IID Poisson", "IID ZI Poison 1", "IID ZI Poison 2",
-           "BYM Poisson", "BYM ZI Poison 1", "BYM ZI Poison 2"))
-```
-
-## WAIC 
-
-```{r}
-dotchart(c(
-  gem_sex_iid$Female_Poisson$waic$waic,
-  # gem_sex_iid$Female_zeroinflatedpoisson0$waic$waic,
-  gem_sex_iid$Female_zeroinflatedpoisson1$waic$waic,
-  
-  gem_sex_bym$Female_Poisson$waic$waic,
-  # gem_sex_bym$Female_zeroinflatedpoisson0$waic$waic,
-  gem_sex_bym$Female_zeroinflatedpoisson1$waic$waic
+  gem_sex_bym$Female$Poisson$dic$dic,
+  # gem_sex_bym$Female$zeroinflatedpoisson0$dic$dic,
+  gem_sex_bym$Female$zeroinflatedpoisson1$dic$dic
 ),
 labels = c("IID Poisson", 
            # "IID ZI Poison 0", 
@@ -135,13 +107,49 @@ labels = c("IID Poisson",
            "BYM ZI Poison 1"))
 
 dotchart(c(
-  gem_sex_iid$Male_Poisson$waic$waic,
-  # gem_sex_iid$Male_zeroinflatedpoisson0$waic$waic,
-  gem_sex_iid$Male_zeroinflatedpoisson1$waic$waic,
+  gem_sex_iid$Male$Poisson$dic$dic,
+  # gem_sex_iid$Male$zeroinflatedpoisson0$dic$dic,
+  gem_sex_iid$Male$zeroinflatedpoisson1$dic$dic,
   
-  gem_sex_bym$Male_Poisson$waic$waic,
-  # gem_sex_bym$Male_zeroinflatedpoisson0$waic$waic,
-  gem_sex_bym$Male_zeroinflatedpoisson1$waic$waic
+  gem_sex_bym$Male$Poisson$dic$dic,
+  # gem_sex_bym$Male$zeroinflatedpoisson0$dic$dic,
+  gem_sex_bym$Male$zeroinflatedpoisson1$dic$dic
+),
+labels = c("IID Poisson", 
+           # "IID ZI Poison 0", 
+           "IID ZI Poison 1",
+           "BYM Poisson", 
+           # "BYM ZI Poison 0", 
+           "BYM ZI Poison 1"))
+```
+
+## WAIC 
+
+```{r}
+dotchart(c(
+  gem_sex_iid$Female$Poisson$waic$waic,
+  # gem_sex_iid$Female$zeroinflatedpoisson0$waic$waic,
+  gem_sex_iid$Female$zeroinflatedpoisson1$waic$waic,
+  
+  gem_sex_bym$Female$Poisson$waic$waic,
+  # gem_sex_bym$Female$zeroinflatedpoisson0$waic$waic,
+  gem_sex_bym$Female$zeroinflatedpoisson1$waic$waic
+),
+labels = c("IID Poisson", 
+           # "IID ZI Poison 0", 
+           "IID ZI Poison 1",
+           "BYM Poisson", 
+           # "BYM ZI Poison 0", 
+           "BYM ZI Poison 1"))
+
+dotchart(c(
+  gem_sex_iid$Male$Poisson$waic$waic,
+  # gem_sex_iid$Male$zeroinflatedpoisson0$waic$waic,
+  gem_sex_iid$Male$zeroinflatedpoisson1$waic$waic,
+  
+  gem_sex_bym$Male$Poisson$waic$waic,
+  # gem_sex_bym$Male$zeroinflatedpoisson0$waic$waic,
+  gem_sex_bym$Male$zeroinflatedpoisson1$waic$waic
 ),
 labels = c("IID Poisson", 
            # "IID ZI Poison 0", 
