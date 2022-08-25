@@ -26,7 +26,7 @@ threads = parallel::detectCores()
 
 ### Age adjusted, sex stratified
 
-formula_sex <-
+formula <-
   
   deaths ~ 1 + offset(log(pop_mid_poi)) + 
   
@@ -49,36 +49,35 @@ for(j in c("Female", "Male")){
   # for(f in c("Poisson", "zeroinflatedpoisson0", "zeroinflatedpoisson1")) {
   for(f in c("Poisson", "zeroinflatedpoisson1")) {
     
-    print(j)
-    print(f)
+    print(paste(j, f))
     
-    
-    model_sex <- inla(formula_sex,
-                      data = data_sex,
-                      family = f,
-                      control.family = control.family,
-                      control.compute = list(config = TRUE, 
-                                             # return.marginals.predictor = TRUE,
-                                             cpo = TRUE,
-                                             dic = TRUE, 
-                                             waic = TRUE),
-                      control.mode = list(restart = TRUE),
-                      num.threads = threads,
-                      control.predictor = list(compute = TRUE, link = 1),
-                      control.inla = list(
-                        strategy = "simplified.laplace", # default
-                        # strategy = "adaptive",  
-                        # strategy = "gaussian",  
-                        # strategy = "laplace", #npoints = 21, 
-                        int.strategy = "ccd" # default
-                        # int.strategy = "grid", diff.logdens = 4
-                      )
+    model <- inla(formula,
+                  data = data_sex,
+                  family = f,
+                  control.family = control.family,
+                  control.compute = list(config = TRUE, 
+                                         # return.marginals.predictor = TRUE,
+                                         cpo = TRUE,
+                                         dic = TRUE, 
+                                         waic = TRUE),
+                  control.mode = list(restart = TRUE),
+                  num.threads = threads,
+                  control.predictor = list(compute = TRUE, link = 1),
+                  control.inla = list(
+                    strategy = "simplified.laplace", # default
+                    # strategy = "adaptive",  
+                    # strategy = "gaussian",  
+                    # strategy = "laplace", #npoints = 21, 
+                    int.strategy = "ccd" # default
+                    # int.strategy = "grid", diff.logdens = 4
+                  )
     )
     
-    name <- paste(j)
-    gem_sex_bym[[name]] <- model_sex
+    sex <- paste(j)
+    family <- paste(f)
+    gem_sex_bym[[sex]][[family]] <- model
     
-    rm(model_sex); gc()
+    rm(model); gc()
     
   }
   rm(data_sex); gc()

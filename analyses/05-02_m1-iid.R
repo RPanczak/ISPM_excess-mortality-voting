@@ -16,8 +16,6 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
 
 # priors
 hyper.iid <- list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
-hyper.bym <- list(theta1 = list("PCprior", c(1, 0.01)), 
-                  theta2 = list("PCprior", c(0.5, 0.5)))
 
 control.family <- inla.set.control.family.default()
 
@@ -25,7 +23,7 @@ threads = parallel::detectCores()
 
 ### Age adjusted, sex stratified
 
-formula_sex <-
+formula <-
   
   deaths ~ 1 + offset(log(pop_mid_poi)) + 
   
@@ -45,38 +43,39 @@ for(j in c("Female", "Male")){
     as.data.frame()
   
   # also "nbinomial", "zeroinflatednbinomial0", "zeroinflatednbinomial1"?
-  for(f in c("Poisson", "zeroinflatedpoisson0", "zeroinflatedpoisson1")) {
+  # for(f in c("Poisson", "zeroinflatedpoisson0", "zeroinflatedpoisson1")) {
+  for(f in c("Poisson", "zeroinflatedpoisson1")) {
     
-    print(j)
-    print(f)
+    print(paste(j, f))
     
-    model_sex <- inla(formula_sex,
-                      data = data_sex,
-                      family = f,
-                      verbose = TRUE,
-                      control.family = control.family,
-                      control.compute = list(config = TRUE, 
-                                             # return.marginals.predictor = TRUE,
-                                             cpo = TRUE,
-                                             dic = TRUE, 
-                                             waic = TRUE),
-                      control.mode = list(restart = TRUE),
-                      num.threads = threads,
-                      control.predictor = list(compute = TRUE, link = 1),
-                      control.inla = list(
-                        strategy = "simplified.laplace", # default
-                        # strategy = "adaptive",  
-                        # strategy = "gaussian",  
-                        # strategy = "laplace", #npoints = 21, 
-                        int.strategy = "ccd" # default
-                        # int.strategy = "grid", diff.logdens = 4
-                      )
+    model <- inla(formula,
+                  data = data_sex,
+                  family = f,
+                  verbose = TRUE,
+                  control.family = control.family,
+                  control.compute = list(config = TRUE, 
+                                         # return.marginals.predictor = TRUE,
+                                         cpo = TRUE,
+                                         dic = TRUE, 
+                                         waic = TRUE),
+                  control.mode = list(restart = TRUE),
+                  num.threads = threads,
+                  control.predictor = list(compute = TRUE, link = 1),
+                  control.inla = list(
+                    strategy = "simplified.laplace", # default
+                    # strategy = "adaptive",  
+                    # strategy = "gaussian",  
+                    # strategy = "laplace", #npoints = 21, 
+                    int.strategy = "ccd" # default
+                    # int.strategy = "grid", diff.logdens = 4
+                  )
     )
     
-    name <- paste(j, f, sep = "_")
-    gem_sex_iid[[name]] <- model_sex
+    sex <- paste(j)
+    family <- paste(f)
+    gem_sex_iid[[sex]][[family]] <- model
     
-    rm(model_sex); gc()
+    rm(model); gc()
     
   }
   rm(data_sex); gc()
