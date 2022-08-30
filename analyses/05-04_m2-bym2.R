@@ -15,9 +15,11 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
 
 ### INLA setup
 
-# priors
+# priors I
+# inspired by @gkonstantinoudis 
+# https://github.com/gkonstantinoudis/TutorialExcess
 hyper.iid <- list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
-hyper.bym <- list(theta1 = list("PCprior", c(1, 0.01)), 
+hyper.bym2 <- list(theta1 = list("PCprior", c(1, 0.01)), 
                   theta2 = list("PCprior", c(0.5, 0.5)))
 
 control.family <- inla.set.control.family.default()
@@ -34,9 +36,9 @@ formula <-
   
   f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) +
   
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym)
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
-gem_sex_bym <- list()
+gem_sex_bym2 <- list()
 
 for(j in c("Female", "Male")){
   
@@ -67,7 +69,7 @@ for(j in c("Female", "Male")){
                     strategy = "simplified.laplace", # default
                     # strategy = "adaptive",  
                     # strategy = "gaussian",  
-                    # strategy = "laplace", #npoints = 21, 
+                    # strategy = "laplace", # npoints = 21, 
                     int.strategy = "ccd" # default
                     # int.strategy = "grid", diff.logdens = 4
                   )
@@ -75,7 +77,7 @@ for(j in c("Female", "Male")){
     
     sex <- paste(j)
     family <- paste(f)
-    gem_sex_bym[[sex]][[family]] <- model
+    gem_sex_bym2[[sex]][[family]] <- model
     
     rm(model); gc()
     
@@ -83,4 +85,4 @@ for(j in c("Female", "Male")){
   rm(data_sex); gc()
   
 }
-write_rds(gem_sex_bym, "results/gem_sex_bym.Rds")
+write_rds(gem_sex_bym2, "results/gem_sex_bym2.Rds")
