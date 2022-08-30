@@ -11,11 +11,12 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing
-  filter(pop_mid_poi > 0) 
+  filter(pop_mid_poi > 0) %>% 
+  mutate(id_space2 = id_space)
 
 ### INLA setup
 
-# priors I
+#### priors 
 # inspired by @martablangiardo 
 # https://github.com/martablangiardo/ExcessDeathsItaly
 hyper.bym <- list(theta1 = list("loggamma", c(1, 0.1)), 
@@ -26,16 +27,19 @@ control.family <- inla.set.control.family.default()
 threads = parallel::detectCores()
 
 ### Age adjusted, sex stratified
+# space time interaction from Bernardinelli et al. (1995)
+# https://www.paulamoraga.com/book-geospatial/sec-arealdataexamplest.html
 
 formula <-
   
   deaths ~ 1 + offset(log(pop_mid_poi)) + 
   
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_age, model = "iid") +
   
-  f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_space, model = "bym", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym) + 
   
-  f(id_space, model = "bym", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym)
+  f(id_space2, id_year, model = "iid") + id_year
+
 
 gem_sex_bym <- list()
 

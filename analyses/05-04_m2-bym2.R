@@ -6,6 +6,7 @@ library(sf)
 library(INLA)
 
 ### data 
+
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
   # testing df
   select(-(ARGRNR:ARNAME)) %>%
@@ -15,10 +16,12 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
 
 ### INLA setup
 
-# priors I
+# priors
 # inspired by @gkonstantinoudis 
 # https://github.com/gkonstantinoudis/TutorialExcess
+
 hyper.iid <- list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
+
 hyper.bym2 <- list(theta1 = list("PCprior", c(1, 0.01)), 
                   theta2 = list("PCprior", c(0.5, 0.5)))
 
