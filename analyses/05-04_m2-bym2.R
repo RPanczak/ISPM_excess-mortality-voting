@@ -35,6 +35,8 @@ formula <-
   
   deaths ~ 1 + offset(log(pop_mid_poi)) + 
   
+  id_2015 + 
+  
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
   
   f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) +
