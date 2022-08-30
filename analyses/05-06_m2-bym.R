@@ -84,4 +84,4 @@ for(j in c("Female", "Male")){
   rm(data_sex); gc()
   
 }
-write_rds(gem_sex_bym, "results/gem_sex_bym2.Rds")
+write_rds(gem_sex_bym, "results/gem_sex_bym.Rds")
