@@ -14,7 +14,9 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
 
 ### INLA setup
 
-# priors
+# priors I
+# inspired by @gkonstantinoudis 
+# https://github.com/gkonstantinoudis/TutorialExcess
 hyper.iid <- list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
 
 control.family <- inla.set.control.family.default()
@@ -65,7 +67,7 @@ for(j in c("Female", "Male")){
                     strategy = "simplified.laplace", # default
                     # strategy = "adaptive",  
                     # strategy = "gaussian",  
-                    # strategy = "laplace", #npoints = 21, 
+                    # strategy = "laplace", # npoints = 21, 
                     int.strategy = "ccd" # default
                     # int.strategy = "grid", diff.logdens = 4
                   )
