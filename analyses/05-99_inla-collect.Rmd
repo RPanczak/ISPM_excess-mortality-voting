@@ -84,7 +84,8 @@ gg <- readRDS("data/BfS/gg.Rds")
 
 ```{r}
 gem_sex_iid <- read_rds("results/gem_sex_iid.Rds")
-gem_sex_bym <- read_rds("results/gem_sex_bym.Rds")
+# gem_sex_bym <- read_rds("results/gem_sex_bym.Rds")
+gem_sex_bym2 <- read_rds("results/gem_sex_bym2.Rds")
 ```
 
 ## DIC 
@@ -95,32 +96,32 @@ dotchart(c(
   # gem_sex_iid$Female$zeroinflatedpoisson0$dic$dic,
   gem_sex_iid$Female$zeroinflatedpoisson1$dic$dic,
   
-  gem_sex_bym$Female$Poisson$dic$dic,
-  # gem_sex_bym$Female$zeroinflatedpoisson0$dic$dic,
-  gem_sex_bym$Female$zeroinflatedpoisson1$dic$dic
+  gem_sex_bym2$Female$Poisson$dic$dic,
+  # gem_sex_bym2$Female$zeroinflatedpoisson0$dic$dic,
+  gem_sex_bym2$Female$zeroinflatedpoisson1$dic$dic
 ),
 labels = c("IID Poisson", 
            # "IID ZI Poison 0", 
            "IID ZI Poison 1",
-           "BYM Poisson", 
+           "BYM2 Poisson", 
            # "BYM ZI Poison 0", 
-           "BYM ZI Poison 1"))
+           "BYM2 ZI Poison 1"))
 
 dotchart(c(
   gem_sex_iid$Male$Poisson$dic$dic,
   # gem_sex_iid$Male$zeroinflatedpoisson0$dic$dic,
   gem_sex_iid$Male$zeroinflatedpoisson1$dic$dic,
   
-  gem_sex_bym$Male$Poisson$dic$dic,
-  # gem_sex_bym$Male$zeroinflatedpoisson0$dic$dic,
-  gem_sex_bym$Male$zeroinflatedpoisson1$dic$dic
+  gem_sex_bym2$Male$Poisson$dic$dic,
+  # gem_sex_bym2$Male$zeroinflatedpoisson0$dic$dic,
+  gem_sex_bym2$Male$zeroinflatedpoisson1$dic$dic
 ),
 labels = c("IID Poisson", 
            # "IID ZI Poison 0", 
            "IID ZI Poison 1",
-           "BYM Poisson", 
+           "BYM2 Poisson", 
            # "BYM ZI Poison 0", 
-           "BYM ZI Poison 1"))
+           "BYM2 ZI Poison 1"))
 ```
 
 ## WAIC 
@@ -131,9 +132,9 @@ dotchart(c(
   # gem_sex_iid$Female$zeroinflatedpoisson0$waic$waic,
   gem_sex_iid$Female$zeroinflatedpoisson1$waic$waic,
   
-  gem_sex_bym$Female$Poisson$waic$waic,
-  # gem_sex_bym$Female$zeroinflatedpoisson0$waic$waic,
-  gem_sex_bym$Female$zeroinflatedpoisson1$waic$waic
+  gem_sex_bym2$Female$Poisson$waic$waic,
+  # gem_sex_bym2$Female$zeroinflatedpoisson0$waic$waic,
+  gem_sex_bym2$Female$zeroinflatedpoisson1$waic$waic
 ),
 labels = c("IID Poisson", 
            # "IID ZI Poison 0", 
@@ -147,9 +148,9 @@ dotchart(c(
   # gem_sex_iid$Male$zeroinflatedpoisson0$waic$waic,
   gem_sex_iid$Male$zeroinflatedpoisson1$waic$waic,
   
-  gem_sex_bym$Male$Poisson$waic$waic,
-  # gem_sex_bym$Male$zeroinflatedpoisson0$waic$waic,
-  gem_sex_bym$Male$zeroinflatedpoisson1$waic$waic
+  gem_sex_bym2$Male$Poisson$waic$waic,
+  # gem_sex_bym2$Male$zeroinflatedpoisson0$waic$waic,
+  gem_sex_bym2$Male$zeroinflatedpoisson1$waic$waic
 ),
 labels = c("IID Poisson", 
            # "IID ZI Poison 0", 
@@ -161,26 +162,26 @@ labels = c("IID Poisson",
 
 <!-- ----------------------------------------------------- -->
 
-# IID stratified modelling
+# Best model
 
 ## Model 
 
 ```{r}
-iid_male <- gem_sex_iid$Male
-summary(iid_male)
-iid_male$summary.hyperpar
+bym2_male <- gem_sex_bym2$Male
+summary(bym2_male$Poisson)
+bym2_male$Poisson$summary.hyperpar
 ```
 
 ## Year 
 
 ```{r}
-iid_male_year <- iid_male$summary.random$id_year %>% 
+bym2_male_year <- bym2_male$Poisson$summary.random$id_year %>% 
   mutate(ID = ID + 2014, 
          `0.025quant` = exp(`0.025quant`),
          `0.5quant` = exp(`0.5quant`),
          `0.975quant` = exp(`0.975quant`))
 
-iid_male_year %>% 
+bym2_male_year %>% 
   ggplot(aes(y = ID)) + 
   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
   theme_minimal() + 
@@ -190,12 +191,12 @@ iid_male_year %>%
 ## Age 
 
 ```{r}
-iid_male_age <- iid_male$summary.random$id_age %>% 
+bym2_male_age <- bym2_male$Poisson$summary.random$id_age %>% 
   mutate(`0.025quant` = exp(`0.025quant`),
          `0.5quant` = exp(`0.5quant`),
          `0.975quant` = exp(`0.975quant`))
 
-iid_male_age %>% 
+bym2_male_age %>% 
   ggplot(aes(y = ID)) + 
   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
   theme_minimal() + 
@@ -205,13 +206,13 @@ iid_male_age %>%
 ## Observed vs predicted
 
 ```{r}
-iid_male_fit <- bind_cols(
+bym2_male_fit <- bind_cols(
   data_male,
-  iid_male$summary.fitted.values
+  bym2_male$Poisson$summary.fitted.values
 ) %>% 
-  mutate(split = ifelse(year < 2020, "Pre", "Pand"))
+  mutate(split = ifelse(year < 2020, "Pre-pandemic", "Pandemic"))
 
-ggplot(iid_male_fit) + 
+ggplot(bym2_male_fit) + 
   geom_point(aes(x = `0.5quant`, y = observed), alpha = 0.22) + 
   facet_wrap(vars(split)) +
   xlab("predicted") + 
@@ -221,7 +222,7 @@ ggplot(iid_male_fit) +
 ## Example of Lugano 
 
 ```{r}
-iid_male_fit %>% 
+bym2_male_fit %>% 
   filter(GMDNAME == "Lugano") %>% 
   ggplot(aes(x = year, fill = age, group = age)) + 
   geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
@@ -235,7 +236,7 @@ iid_male_fit %>%
 ## Aggregating all observed and pred over time
 
 ```{r}
-iid_male_fit_agg <- iid_male_fit %>% 
+bym2_male_fit_agg <- bym2_male_fit %>% 
   group_by(year) %>% 
   summarise(observed = sum(observed),
             # population = sum(population),
@@ -243,9 +244,9 @@ iid_male_fit_agg <- iid_male_fit %>%
   ungroup() %>% 
   mutate(diff = observed - predicted)
 
-iid_male_fit_agg
+bym2_male_fit_agg
 
-iid_male_fit_agg %>% 
+bym2_male_fit_agg %>% 
   ggplot(aes(x = year)) + 
   geom_line(aes(y = predicted)) + 
   geom_line(aes(y = observed), col = "darkorchid", alpha = 0.5) + 
@@ -257,21 +258,21 @@ iid_male_fit_agg %>%
 ## Region effect 
 
 ```{r}
-iid_male_space <-
+bym2_male_space <-
   gg %>%
   # tg3o %>%
   left_join(data_male %>% select(GMDNR, id_space) %>% distinct()) %>%
-  left_join(iid_male$summary.random$id_space %>%
+  left_join(bym2_male$Poisson$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
               select(ID, starts_with("s1")),
             by = c("id_space" = "ID")) # %>%
 
-tm_shape(iid_male_space) +
+tm_shape(bym2_male_space) +
   tm_fill("s1_m")
 
-# tm_shape(iid_male_space) +
+# tm_shape(bym2_male_space) +
 #   tm_fill("s2_m")
 ```
 
@@ -279,148 +280,16 @@ tm_shape(iid_male_space) +
 
 ```{r}
 marg.variance <- inla.tmarginal(function(x) 1/x,
-                                iid_male$marginals.hyperpar$"Precision for id_space")
+                                bym2_male$Poisson$marginals.hyperpar$"Precision for id_space")
 inla.zmarginal(marg.variance)
 
 rm(marg.variance)
 ```
 
 ```{r eval=FALSE, include=FALSE}
-table(iid_male$cpo$failure > 0)
-sum(-log(iid_male$cpo$cpo), na.rm = TRUE)
-# iid_male$cpo$pit
+table(bym2_male$Poisson$cpo$failure > 0)
+sum(-log(bym2_male$Poisson$cpo$cpo), na.rm = TRUE)
+# bym2_male$cpo$pit
 ```
 
 
-<!-- ----------------------------------------------------- -->
-
-# BYM stratified modelling
-
-## Model 
-
-```{r}
-bym_male <- gem_sex_bym$Male
-summary(bym_male)
-bym_male$summary.hyperpar
-```
-
-## Year 
-
-```{r}
-bym_male_year <- bym_male$summary.random$id_year %>% 
-  mutate(ID = ID + 2014, 
-         `0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`))
-
-bym_male_year %>% 
-  ggplot(aes(y = ID)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  theme_minimal() + 
-  scale_x_log10()
-```
-
-## Age 
-
-```{r}
-bym_male_age <- bym_male$summary.random$id_age %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`))
-
-bym_male_age %>% 
-  ggplot(aes(y = ID)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  theme_minimal() + 
-  scale_x_log10()
-```
-
-## Observed vs predicted
-
-```{r}
-bym_male_fit <- bind_cols(
-  data_male,
-  bym_male$summary.fitted.values
-) %>% 
-  mutate(split = ifelse(year < 2020, "Pre", "Pand"))
-
-ggplot(bym_male_fit) + 
-  geom_point(aes(x = `0.5quant`, y = observed), alpha = 0.22) + 
-  facet_wrap(vars(split)) +
-  xlab("predicted") + 
-  theme_minimal()
-```
-
-## Example of Lugano 
-
-```{r}
-bym_male_fit %>% 
-  filter(GMDNAME == "Lugano") %>% 
-  ggplot(aes(x = year, fill = age, group = age)) + 
-  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
-  geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
-```
-
-## Aggregating all observed and pred over time
-
-```{r}
-bym_male_fit_agg <- bym_male_fit %>% 
-  group_by(year) %>% 
-  summarise(observed = sum(observed),
-            # population = sum(population),
-            predicted = as.integer(sum(`0.5quant`))) %>% 
-  ungroup() %>% 
-  mutate(diff = observed - predicted)
-
-bym_male_fit_agg
-
-bym_male_fit_agg %>% 
-  ggplot(aes(x = year)) + 
-  geom_line(aes(y = predicted)) + 
-  geom_line(aes(y = observed), col = "darkorchid", alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
-```
-
-## Region effect 
-
-```{r}
-bym_male_space <-
-  gg %>%
-  # tg3o %>%
-  left_join(data_male %>% select(GMDNR, id_space) %>% distinct()) %>%
-  left_join(bym_male$summary.random$id_space %>%
-              mutate(s1_l = exp(`0.025quant`),
-                     s1_m = exp(`0.5quant`),
-                     s1_u = exp(`0.975quant`)) %>% 
-              select(ID, starts_with("s1")) %>% 
-              slice(1:nrow(data_male %>% select(GMDNR, id_space) %>% distinct())),
-            by = c("id_space" = "ID")) # %>%
-
-tm_shape(bym_male_space) +
-  tm_fill("s1_m")
-
-# tm_shape(bym_male_space) +
-#   tm_fill("s2_m")
-```
-
-## Performance 
-
-```{r}
-marg.variance <- inla.tmarginal(function(x) 1/x,
-                                bym_male$marginals.hyperpar$"Precision for id_space")
-inla.zmarginal(marg.variance)
-
-rm(marg.variance)
-```
-
-```{r eval=FALSE, include=FALSE}
-table(bym_male$cpo$failure > 0)
-sum(-log(bym_male$cpo$cpo), na.rm = TRUE)
-# bym_male$cpo$pit
-```
