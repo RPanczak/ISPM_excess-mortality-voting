@@ -74,6 +74,7 @@ data_female <- data %>%
 ## Spatial 
 
 ```{r}
+kt <- readRDS("data/BfS/kt.Rds")
 gg <- readRDS("data/BfS/gg.Rds")
 # tg3o <- readRDS("data/geo/tg3o.Rds")
 ```
@@ -88,7 +89,9 @@ gem_sex_iid <- read_rds("results/gem_sex_iid.Rds")
 gem_sex_bym2 <- read_rds("results/gem_sex_bym2.Rds")
 ```
 
-## DIC 
+## DIC {.tabset}
+
+### Males 
 
 ```{r}
 dotchart(c(
@@ -106,7 +109,11 @@ labels = c("IID Poisson",
            "BYM2 Poisson", 
            # "BYM ZI Poison 0", 
            "BYM2 ZI Poison 1"))
+```
 
+### Females 
+
+```{r}
 dotchart(c(
   gem_sex_iid$Male$Poisson$dic$dic,
   # gem_sex_iid$Male$zeroinflatedpoisson0$dic$dic,
@@ -124,7 +131,9 @@ labels = c("IID Poisson",
            "BYM2 ZI Poison 1"))
 ```
 
-## WAIC 
+## WAIC {.tabset}
+
+### Males 
 
 ```{r}
 dotchart(c(
@@ -142,7 +151,11 @@ labels = c("IID Poisson",
            "BYM Poisson", 
            # "BYM ZI Poison 0", 
            "BYM ZI Poison 1"))
+```
 
+### Females 
+
+```{r}
 dotchart(c(
   gem_sex_iid$Male$Poisson$waic$waic,
   # gem_sex_iid$Male$zeroinflatedpoisson0$waic$waic,
@@ -210,6 +223,7 @@ bym2_male_fit <- bind_cols(
   data_male,
   bym2_male$Poisson$summary.fitted.values
 ) %>% 
+  remove_rownames() %>% 
   mutate(split = ifelse(year < 2020, "Pre-pandemic", "Pandemic"))
 
 ggplot(bym2_male_fit) + 
@@ -219,11 +233,88 @@ ggplot(bym2_male_fit) +
   theme_minimal()
 ```
 
-## Example of Lugano 
+## Examples
+
+### Lugano 
 
 ```{r}
 bym2_male_fit %>% 
   filter(GMDNAME == "Lugano") %>% 
+  ggplot(aes(x = year, fill = age, group = age)) + 
+  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
+  geom_line(aes(y = `0.5quant`, color = age)) + 
+  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
+  # facet_wrap(vars(split), scales = "free_x") +
+  xlab("") + ylab("predicted/observed") +
+  theme_minimal()
+```
+
+### Most error 2015-19
+
+```{r}
+bym2_male_fit %>% 
+  filter(year < 2020) %>% 
+  mutate(diff = as.integer(round(observed - `0.5quant`))) %>% 
+  group_by(GMDNAME) %>% 
+  summarize(diff = abs(sum(diff))) %>% 
+  ungroup() %>% 
+  arrange(desc(diff))
+
+bym2_male_fit %>% 
+  filter(GMDNAME == "Appenzell") %>% 
+  ggplot(aes(x = year, fill = age, group = age)) + 
+  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
+  geom_line(aes(y = `0.5quant`, color = age)) + 
+  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
+  # facet_wrap(vars(split), scales = "free_x") +
+  xlab("") + ylab("predicted/observed") +
+  theme_minimal()
+
+bym2_male_fit %>% 
+  filter(GMDNAME == "Rüte") %>% 
+  ggplot(aes(x = year, fill = age, group = age)) + 
+  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
+  geom_line(aes(y = `0.5quant`, color = age)) + 
+  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
+  # facet_wrap(vars(split), scales = "free_x") +
+  xlab("") + ylab("predicted/observed") +
+  theme_minimal()
+
+bym2_male_fit %>% 
+  filter(GMDNAME == "Goumoëns") %>% 
+  ggplot(aes(x = year, fill = age, group = age)) + 
+  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
+  geom_line(aes(y = `0.5quant`, color = age)) + 
+  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
+  # facet_wrap(vars(split), scales = "free_x") +
+  xlab("") + ylab("predicted/observed") +
+  theme_minimal()
+```
+
+### Least error 2015-19
+
+```{r}
+bym2_male_fit %>% 
+  filter(year < 2020) %>% 
+  mutate(diff = as.integer(round(observed - `0.5quant`))) %>% 
+  group_by(GMDNAME) %>% 
+  summarize(diff = abs(sum(diff)),
+            deaths = sum(deaths)) %>% 
+  ungroup() %>% 
+  arrange(diff) 
+
+bym2_male_fit %>% 
+  filter(GMDNAME == "Adlikon") %>% 
+  ggplot(aes(x = year, fill = age, group = age)) + 
+  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
+  geom_line(aes(y = `0.5quant`, color = age)) + 
+  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
+  # facet_wrap(vars(split), scales = "free_x") +
+  xlab("") + ylab("predicted/observed") +
+  theme_minimal()
+
+bym2_male_fit %>% 
+  filter(GMDNAME == "Horw") %>% 
   ggplot(aes(x = year, fill = age, group = age)) + 
   geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
   geom_line(aes(y = `0.5quant`, color = age)) + 
@@ -260,6 +351,7 @@ bym2_male_fit_agg %>%
 ```{r}
 bym2_male_space <-
   gg %>%
+  select(GMDNR) %>% 
   # tg3o %>%
   left_join(data_male %>% select(GMDNR, id_space) %>% distinct()) %>%
   left_join(bym2_male$Poisson$summary.random$id_space %>%
@@ -268,12 +360,42 @@ bym2_male_space <-
                      s1_u = exp(`0.975quant`)) %>% 
               select(ID, starts_with("s1")),
             by = c("id_space" = "ID")) # %>%
+```
 
+```{r}
 tm_shape(bym2_male_space) +
-  tm_fill("s1_m")
+  tm_fill("s1_m", palette = "-BrBG", midpoint = 1, 
+          title = "Region effect")
+```
 
-# tm_shape(bym2_male_space) +
-#   tm_fill("s2_m")
+```{r}
+bym2_male_space <-
+  gg %>%
+  select(GMDNR) %>% 
+  # tg3o %>%
+  left_join(data_male %>% 
+              filter(year == 2020) %>% 
+              group_by(GMDNR, id_space) %>% 
+              summarise(pop_mid_poi = sum(pop_mid_poi)) %>% 
+              ungroup()) %>%
+  left_join(bym2_male$Poisson$summary.random$id_space %>%
+              mutate(s1_l = exp(`0.025quant`),
+                     s1_m = exp(`0.5quant`),
+                     s1_u = exp(`0.975quant`)) %>% 
+              select(ID, starts_with("s1")),
+            by = c("id_space" = "ID")) # %>%
+```
+
+```{r}
+tm_shape(kt) +
+  tm_borders() +  
+  tm_shape(bym2_male_space) +
+  tm_symbols(size = "pop_mid_poi", col = "s1_m",
+             shape = 15,
+             palette = "-BrBG", midpoint = 1, 
+             title.size = "Population", 
+             title.col = "Region effect") + 
+  tm_legend(position = c("left", "top"))
 ```
 
 ## Performance 
@@ -282,8 +404,6 @@ tm_shape(bym2_male_space) +
 marg.variance <- inla.tmarginal(function(x) 1/x,
                                 bym2_male$Poisson$marginals.hyperpar$"Precision for id_space")
 inla.zmarginal(marg.variance)
-
-rm(marg.variance)
 ```
 
 ```{r eval=FALSE, include=FALSE}
