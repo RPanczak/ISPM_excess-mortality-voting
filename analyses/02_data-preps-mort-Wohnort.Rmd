@@ -175,7 +175,7 @@ stopifnot(nrow(no_link) == 0)
 rm(no_link)
 ```
 
-There were `r number(nrow(raum), big.mark = ",")` municipalities on the `2022-01-01` in CH.  
+There were `r number(nrow(raum), big.mark = ",")` municipalities on the `2022-01-01` in CH (mark #28 tho!).  
 
 ```{r echo=FALSE}
 no_cases <- raum %>% 
