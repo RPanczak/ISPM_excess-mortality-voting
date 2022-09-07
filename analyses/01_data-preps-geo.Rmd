@@ -59,7 +59,7 @@ knitr::opts_knit$set(width = 75)
 
 [Generalisierte Gemeindegrenzen: Geodaten](https://www.bfs.admin.ch/bfs/en/home/services/geostat/swiss-federal-statistics-geodata/administrative-boundaries/generalized-boundaries-local-regional-authorities.assetdetail.21224783.html).
 
-Using version from the `08.02.2022`.  
+Using version from the `08.02.2022`. Adding [two additional mutations](https://github.com/RPanczak/ISPM_excess-mortality-voting/issues/28) to match the voting dataset.    
 
 ```{r eval=FALSE}
 download.file(url = "https://www.bfs.admin.ch/bfsstatic/dam/assets/21224783/master",
@@ -102,6 +102,9 @@ se <-
 ```
 
 ```{r eval=FALSE, include=FALSE}
+length(unique(gg_raw$GMDNR))
+length(unique(gg$GMDNR))
+
 unique(st_geometry_type(gg))
 
 table(st_is_valid(gg))
@@ -462,8 +465,9 @@ gg %<>%
 ```
 
 
-```{r echo=FALSE, include=FALSE}
-# should be exact overlap
+```{r eval=FALSE}
+# not exact overlap any longer after #28 issue corrections
+# needs manual updates of st_gg if needed?
 stopifnot(
   gg %>%
     filter(! GMDNR %in% st_gg$GMDNR) %>% 
@@ -590,61 +594,6 @@ st_gg %<>% left_join(raum %>% select(GMDNR, KTNAME,
 write_rds(st_gg, "data/swisstopo/st_gg.Rds")
 
 st_write(st_gg, "data/geo/swisstopo.gpkg", layer = "st_gg", append = FALSE)
-```
-
-<!-- ----------------------------------------------------- -->
-
-# tg3o simplification
-
-So called 'productive areas', also coming from BfS' *ThemaKart* [product](https://www.bfs.admin.ch/bfs/en/home/statistics/regional-statistics/base-maps/cartographic-bases.assetdetail.21245514.html).
-
-Roughly coincides with removing areas of above 2000m asl.
-
-```{r include=FALSE}
-tg3o_raw <- 
-  st_read("data-raw/BfS/KM04-00-c-suis-2022-q/01_INST/Vegetationsfläche_vf/K4_polg20220101_vf/K4polg20220101vf_ch2007Poly.shp",
-          as_tibble = TRUE) %>% 
-  st_transform(2056) %>% 
-  rename(GMDNR = id,
-         GMDNAME = name)
-```
-
-```{r results=FALSE}
-tg3o <- 
-  st_read("data/BfS/KM04-00-c-suis-2022-q/01_INST/Vegetationsfläche_vf/K4_polg20220101_vf/K4polg20220101vf_ch2007Poly.shp",
-          as_tibble = TRUE) %>% 
-  st_transform(2056) %>% 
-  rename(GMDNR = id,
-         GMDNAME = name)
-```
-
-**Note:** *the three discontinued municipality borders highlighted above have been also corrected in this dataset.*  
-
-```{r eval=FALSE, include=FALSE}
-# sanity checks
-tg3o %>% 
-  st_drop_geometry() %>% 
-  filter(GMDNR %in% c(2391, 5391, 5394)) %>% 
-  select(GMDNR, GMDNAME)
-
-frq(st_is_valid(tg3o))
-
-tg3o %>% 
-  st_drop_geometry() %>% 
-  select(GMDNR) %>% 
-  anti_join(gg %>% st_drop_geometry())
-```
-
-Dataset consists of `r scales::number(length(unique(tg3o$GMDNR)), big.mark = ",")` communities. The state is from `2022-01-01`.  
-
-```{r echo=FALSE}
-qtm(tg3o)
-```
-
-```{r include=FALSE}
-write_rds(tg3o, "data/BfS/tg3o.Rds")
-
-st_write(tg3o, "data/geo/tg3o.gpkg", layer = "tg3o", append = FALSE)
 ```
 
 <!-- ----------------------------------------------------- -->
@@ -870,21 +819,74 @@ write_rds(gg_wm_q_list, "data/nb/gg_wm_q_list.Rds")
 
 <!-- ----------------------------------------------------- -->
 
-# Spatial connectivity of tg3o municipalities
+# tg3o simplification
 
-Based on queen connectivity between the productive areas. Uses 'tg3o' simplified municipality boundaries so it breaks some connections in the mountainous regions. Few disconnected areas are connected back, mostly when tehre is a train tunnel or a year round road pass connection.
+So called 'productive areas', also coming from BfS' *ThemaKart* [product](https://www.bfs.admin.ch/bfs/en/home/statistics/regional-statistics/base-maps/cartographic-bases.assetdetail.21245514.html).
+
+Roughly coincides with removing areas of above 2000m asl.
+
+```{r results=FALSE}
+tg3o <- 
+  st_read("data/BfS/KM04-00-c-suis-2022-q/01_INST/Vegetationsfläche_vf/K4_polg20220101_vf/K4polg20220101vf_ch2007Poly.shp",
+          as_tibble = TRUE) %>% 
+  st_transform(2056) %>% 
+  rename(GMDNR = id,
+         GMDNAME = name)
+```
+
+**Note:** *the three discontinued municipality borders highlighted above have been also corrected in this dataset.*  
+
+```{r eval=FALSE, include=FALSE}
+# sanity checks
+tg3o %>% 
+  st_drop_geometry() %>% 
+  filter(GMDNR %in% c(2391, 5391, 5394)) %>% 
+  select(GMDNR, GMDNAME)
+
+frq(st_is_valid(tg3o))
+
+tg3o %>% 
+  st_drop_geometry() %>% 
+  select(GMDNR) %>% 
+  anti_join(gg %>% st_drop_geometry())
+```
+
+Dataset consists of `r scales::number(length(unique(tg3o$GMDNR)), big.mark = ",")` communities. The state is from `2022-01-01`.  
+
+```{r echo=FALSE}
+qtm(tg3o)
+```
+
+```{r include=FALSE}
+write_rds(tg3o, "data/BfS/tg3o.Rds")
+
+st_write(tg3o, "data/geo/tg3o.gpkg", layer = "tg3o", append = FALSE)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Spatial connectivity of tg3o boundaries
+
+Based on queen connectivity between the productive areas. Uses 'tg3o' simplified municipality boundaries so it breaks some connections in the mountainous regions. Few disconnected areas are connected back, mostly when there is a train tunnel or a year round road pass connection.
 
 ## Weights
 
 ```{r include=FALSE}
-tg3o_raw_wm_q <- poly2nb(tg3o_raw, queen = TRUE, row.names = tg3o_raw$GMDNR)
+tg3o_raw_wm_q <- poly2nb(tg3o, queen = TRUE, row.names = tg3o$GMDNR)
 
 # tg3o_wm_q
 # summary(tg3o_wm_q)
 ```
 
 ```{r}
-tg3o_wm_q <- poly2nb(tg3o, queen = TRUE, row.names = tg3o$GMDNR)
+tg3o_nb <- 
+  st_read("data/BfS/KM04-00-c-suis-2022-q/01_INST/Vegetationsfläche_vf/K4_polg20220101_vf_nb/K4polg20220101vf_ch2007Poly.shp",
+          as_tibble = TRUE) %>% 
+  st_transform(2056) %>% 
+  rename(GMDNR = id,
+         GMDNAME = name)
+
+tg3o_wm_q <- poly2nb(tg3o_nb, queen = TRUE, row.names = tg3o$GMDNR)
 
 tg3o_wm_q
 summary(tg3o_wm_q)
@@ -898,9 +900,9 @@ nb2INLA("data/nb/tg3o_wm_q.adj", tg3o_wm_q)
 Original connectivity, notice disconnected 'islands' of polygons:
 
 ```{r echo=FALSE}
-plot(as_Spatial(tg3o_raw), col = "lightgrey") 
+plot(as_Spatial(tg3o), col = "lightgrey") 
 
-plot(tg3o_raw_wm_q, coordinates(as_Spatial(tg3o_raw)), 
+plot(tg3o_raw_wm_q, coordinates(as_Spatial(tg3o)), 
      pch = 19, cex = 0.6, add = TRUE, col = "red")
 ```
 
