@@ -101,7 +101,14 @@ w_deaths_2015_2021 %<>%
   # Murten merge
   mutate(GMDNAME = if_else(GMDNAME == "Galmiz", "Murten", GMDNAME)) %>% 
   mutate(GMDNAME = if_else(GMDNAME == "Gempenach", "Murten", GMDNAME)) %>% 
-  mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME))
+  mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME)) %>% 
+  # Schwende-Rüte merge
+  mutate(GMDNAME = if_else(GMDNAME == "Schwende", "Schwende-Rüte", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Rüte", "Schwende-Rüte", GMDNAME)) %>% 
+  # Val Mara merge
+  mutate(GMDNAME = if_else(GMDNAME == "Melano", "Val Mara", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Maroggia", "Val Mara", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Rovio", "Val Mara", GMDNAME))
 ```
 
 # Monthly aggregation
