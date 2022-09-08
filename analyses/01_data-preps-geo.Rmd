@@ -187,8 +187,9 @@ unlink("data-raw/swisstopo/swissboundaries3d_2021-01_2056_5728.shp.zip")
 ```
 
 ```{r}
+# note the source (not raw) to handle #28
 st_gg <- 
-  st_read("data-raw/swisstopo/swissboundaries3d_2022-01_2056_5728/SHAPEFILE_LV95_LN02/swissBOUNDARIES3D_1_3_TLM_HOHEITSGEBIET.shp",
+  st_read("data/swisstopo/swissboundaries3d_2022-01_2056_5728/SHAPEFILE_LV95_LN02/swissBOUNDARIES3D_1_3_TLM_HOHEITSGEBIET.shp",
           as_tibble = TRUE) %>% 
   st_zm(drop = TRUE, what = "ZM") %>% 
   st_transform(2056) 
@@ -201,6 +202,8 @@ st_kt <-
 ```
 
 ```{r eval=FALSE, include=FALSE}
+length(unique(st_gg$BFS_NUMMER))
+
 unique(st_geometry_type(st_gg))
 unique(st_geometry_type(st_kt))
 ```
@@ -465,9 +468,7 @@ gg %<>%
 ```
 
 
-```{r eval=FALSE}
-# not exact overlap any longer after #28 issue corrections
-# needs manual updates of st_gg if needed?
+```{r include=FALSE}
 stopifnot(
   gg %>%
     filter(! GMDNR %in% st_gg$GMDNR) %>% 
