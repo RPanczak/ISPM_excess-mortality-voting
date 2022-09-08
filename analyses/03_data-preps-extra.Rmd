@@ -191,6 +191,16 @@ pop <- read_xlsx("data-raw/BfS/px-x-0103010000_201.xlsx",
   mutate(GMDNR = if_else(GMDNAME == "Clavaleyres", 2275, GMDNR)) %>% 
   mutate(GMDNAME = if_else(GMDNAME == "Clavaleyres", "Murten", GMDNAME)) %>% 
   
+  # Schwende-Rüte merge
+  mutate(GMDNAME = if_else(GMDNAME == "Schwende", "Schwende-Rüte", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Rüte", "Schwende-Rüte", GMDNAME)) %>% 
+  mutate(GMDNR = if_else(GMDNAME == "Schwende-Rüte", 3112, GMDNR)) %>% 
+  # Val Mara merge
+  mutate(GMDNAME = if_else(GMDNAME == "Melano", "Val Mara", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Maroggia", "Val Mara", GMDNAME)) %>% 
+  mutate(GMDNAME = if_else(GMDNAME == "Rovio", "Val Mara", GMDNAME)) %>%  
+  mutate(GMDNR = if_else(GMDNAME == "Val Mara", 5240, GMDNR)) %>%  
+  
   group_by(year, GMDNR, GMDNAME, sex, age) %>% 
   summarise(pop = as.integer(sum(pop))) %>% 
   ungroup() %>% 
@@ -398,6 +408,8 @@ pop_compare <- pop %>%
          perc_diff = if_else(pop_ext_poi == 0, alt, perc_diff)) %>% 
   select(-alt)
 ```
+
+### Differences
 
 ```{r}
 frq(pop_compare, pop_ext_poi > pop) 
@@ -647,9 +659,9 @@ carto_dorling <- carto_data %>%
 write_rds(carto_dorling, "data/carto/carto_dorling.Rds")
 ```
 
-## R solution 2
+<!-- ## R solution 2 -->
 
-Using `cartogramR` package.  
+<!-- Using `cartogramR` package.   -->
 
 ```{r eval=FALSE}
 carto_gsm <- carto_data %>%
