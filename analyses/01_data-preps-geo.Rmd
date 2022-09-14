@@ -102,7 +102,10 @@ se <-
 ```
 
 ```{r eval=FALSE, include=FALSE}
+length(gg_raw$GMDNR)
 length(unique(gg_raw$GMDNR))
+
+length(gg$GMDNR)
 length(unique(gg$GMDNR))
 
 unique(st_geometry_type(gg))
@@ -618,7 +621,7 @@ gg_wm_q
 summary(gg_wm_q)
 ```
 
-```{r eval=FALSE, include=FALSE}
+```{r}
 write_rds(gg_wm_q, "data/nb/gg_wm_q.Rds")
 nb2INLA("data/nb/gg_wm_q.adj", gg_wm_q)
 ```
@@ -810,9 +813,9 @@ plot(gg_wm_q, coordinates(as_Spatial(gg)),
      pch = 19, cex = 0.6, add = TRUE, col = "red")
 ```
 
+```{r eval=FALSE, include=FALSE}
 ## List
 
-```{r}
 gg_wm_q_list <- nb2listw(gg_wm_q, style = "W", zero.policy = TRUE)
 
 write_rds(gg_wm_q_list, "data/nb/gg_wm_q_list.Rds")
@@ -880,6 +883,8 @@ tg3o_raw_wm_q <- poly2nb(tg3o, queen = TRUE, row.names = tg3o$GMDNR)
 ```
 
 ```{r}
+# observe different location (folder with `nb` extension)
+# this is dataset that 'forces' connectivity in certain areas
 tg3o_nb <- 
   st_read("data/BfS/KM04-00-c-suis-2022-q/01_INST/Vegetationsfläche_vf/K4_polg20220101_vf_nb/K4polg20220101vf_ch2007Poly.shp",
           as_tibble = TRUE) %>% 
@@ -927,9 +932,9 @@ plot(diffs, coordinates(as_Spatial(tg3o)),
      points = FALSE, add = TRUE, col = "red")
 ```
 
+```{r eval=FALSE, include=FALSE}
 ## List
 
-```{r}
 tg3o_wm_q_list <- nb2listw(tg3o_wm_q, style = "W", zero.policy = TRUE)
 write_rds(tg3o_wm_q_list, "data/nb/tg3o_wm_q_list.Rds")
 
