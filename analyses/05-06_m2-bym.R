@@ -59,10 +59,10 @@ f4 <- deaths ~ 1 + offset(log(pop_mid_poi)) +
 
 gem_sex_bym <- list()
 
-for(sex in c("Female", "Male")){
+for(s in c("Female", "Male")){
   
   data_sex <- data %>% 
-    filter(sex == sex) %>% 
+    filter(sex == s) %>% 
     select(-sex) %>% 
     as.data.frame()
   
@@ -72,7 +72,7 @@ for(sex in c("Female", "Male")){
     
     mname <- paste0("m", i)
     
-    print(paste(sex, mname))
+    print(paste(s, mname))
     
     model <- inla(formula = formula,
                   data = data_sex,
@@ -96,13 +96,14 @@ for(sex in c("Female", "Male")){
                   )
     )
     
-    gem_sex_bym[[sex]][[mname]] <- model
+    gem_sex_bym[[s]][[mname]] <- model
     
     rm(model); gc()
     
     i <- i + 1
     
   }
+  
   rm(data_sex); gc()
   
 }
