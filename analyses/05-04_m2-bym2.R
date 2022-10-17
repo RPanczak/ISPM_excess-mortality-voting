@@ -37,12 +37,14 @@ threads = parallel::detectCores()
 
 # base
 f1 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
+  year + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
 # additionally adjsuting for 2015
 f2 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
+  year + 
   id_2015 + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + 
@@ -51,12 +53,14 @@ f2 <- deaths ~ 1 + offset(log(pop_mid_poi)) +
 # space time interaction from Bernardinelli et al. (1995)
 # https://www.paulamoraga.com/book-geospatial/sec-arealdataexamplest.html
 f3 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
+  year + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
   f(id_space2, id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + id_year
 
 # both space time interaction and adjusting for 2015
 f4 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
+  year + 
   id_2015 + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
