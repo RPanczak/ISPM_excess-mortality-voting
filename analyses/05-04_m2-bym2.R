@@ -41,7 +41,7 @@ f1 <- deaths ~ 1 + offset(log(pop_mid_poi)) +
   f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
-# adjsuting for 2015
+# additionally adjsuting for 2015
 f2 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
   id_2015 + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
@@ -55,7 +55,7 @@ f3 <- deaths ~ 1 + offset(log(pop_mid_poi)) +
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
   f(id_space2, id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + id_year
 
-
+# both space time interaction and adjusting for 2015
 f4 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
   id_2015 + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
@@ -71,7 +71,6 @@ for(s in c("Female", "Male")){
     filter(sex == s) %>% 
     select(-sex) %>% 
     as.data.frame()
-  
   
   i <- 1
   
