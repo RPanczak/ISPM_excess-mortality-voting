@@ -23,7 +23,7 @@ options(max.print = "75")
 
 library(pacman)
 p_load(tidyverse, magrittr, scales,  
-       sf, tmap,
+       sf, tmap, MLmetrics, 
        INLA)
 
 import::from("sjmisc", "frq")
@@ -52,7 +52,7 @@ knitr::opts_knit$set(width = 75)
 
 # Setup 
 
-## Data
+## Mortality data
 
 ```{r}
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
@@ -74,9 +74,10 @@ data_female <- data %>%
 ## Spatial 
 
 ```{r}
-kt <- readRDS("data/BfS/kt.Rds")
-gg <- readRDS("data/BfS/gg.Rds")
-tg3o <- readRDS("data/BfS/tg3o.Rds")
+kt <- read_rds("data/BfS/kt.Rds")
+gg <- read_rds("data/BfS/gg.Rds")
+tg3o <- read_rds("data/BfS/tg3o.Rds")
+se_alt <- read_rds("data/BfS/se_alt.Rds")
 ```
 
 <!-- ----------------------------------------------------- -->
@@ -153,20 +154,20 @@ labels = c("Model1",
 
 <!-- ----------------------------------------------------- -->
 
-# Best model
+# Best model males
 
 ## Model 
 
 ```{r}
 final_male <- gem_sex_bym2$Male
-summary(final_male$m2)
-final_male$m2$summary.hyperpar
+summary(final_male$m1)
+final_male$m1$summary.hyperpar
 ```
 
 ## Year 
 
 ```{r}
-final_male_year <- final_male$m2$summary.random$id_year %>% 
+final_male_year <- final_male$m1$summary.random$id_year %>% 
   mutate(ID = ID + 2014, 
          `0.025quant` = exp(`0.025quant`),
          `0.5quant` = exp(`0.5quant`),
@@ -177,14 +178,14 @@ final_male_year %>%
   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
   theme_minimal() + 
   scale_x_log10() + 
-  coord_flip() + 
-  ylab("")
+  # coord_flip() + 
+  ylab("") 
 ```
 
 ## Age 
 
 ```{r}
-final_male_age <- final_male$m2$summary.random$id_age %>% 
+final_male_age <- final_male$m1$summary.random$id_age %>% 
   mutate(`0.025quant` = exp(`0.025quant`),
          `0.5quant` = exp(`0.5quant`),
          `0.975quant` = exp(`0.975quant`))
@@ -194,17 +195,18 @@ final_male_age %>%
   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
   theme_minimal() + 
   ylab("Age group") +
+  scale_y_continuous(labels = unique(data_male$age)) +
   scale_x_log10()
 ```
 
 ## Observed vs predicted
 
 ```{r}
-stopifnot(nrow(final_male$m2$summary.fitted.values) == nrow(data_male))
+stopifnot(nrow(final_male$m1$summary.fitted.values) == nrow(data_male))
 
 final_male_fit <- bind_cols(
   data_male,
-  final_male$m2$summary.fitted.values
+  final_male$m1$summary.fitted.values
 ) %>% 
   remove_rownames() %>% 
   mutate(split = ifelse(year < 2020, "Pre-pandemic", "Pandemic"))
@@ -234,89 +236,51 @@ final_male_fit %>%
   theme_minimal()
 ```
 
-### Most error 2015-19
+## Errors 
 
 ```{r}
-final_male_fit %>% 
+errors <- final_male_fit %>% 
   filter(year < 2020) %>% 
-  mutate(diff = as.integer(round(observed - `0.5quant`))) %>% 
   group_by(GMDNAME) %>% 
-  summarize(diff = abs(sum(diff))) %>% 
-  ungroup() %>% 
-  arrange(desc(diff))
-
-final_male_fit %>% 
-  filter(GMDNAME == "Schwende-Rüte") %>% 
-  ggplot(aes(x = year, fill = age, group = age)) + 
-  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
-  geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
-
-final_male_fit %>% 
-  filter(GMDNAME == "Appenzell") %>% 
-  ggplot(aes(x = year, fill = age, group = age)) + 
-  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
-  geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
-
-final_male_fit %>% 
-  filter(GMDNAME == "Goumoëns") %>% 
-  ggplot(aes(x = year, fill = age, group = age)) + 
-  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
-  geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
-```
-
-### Least error 2015-19
-
-```{r}
-final_male_fit %>% 
-  filter(year < 2020) %>% 
-  mutate(diff = as.integer(round(observed - `0.5quant`))) %>% 
-  group_by(GMDNAME) %>% 
-  summarize(diff = abs(sum(diff)),
+  summarize(pred = sum(as.integer(round(`0.5quant`))),
             deaths = sum(deaths)) %>% 
   ungroup() %>% 
-  arrange(diff) 
+  mutate(diff = deaths - pred,
+         perc = ((deaths - pred) / deaths) * 100) %>% 
+  # zero predicted
+  mutate(perc = if_else(pred == 0 & deaths > 0, diff * 100, perc)) %>% 
+  # zero deaths
+  mutate(perc = if_else(deaths == 0 & pred > 0, diff * 100, perc))
 
-final_male_fit %>% 
-  filter(GMDNAME == "Adlikon") %>% 
-  ggplot(aes(x = year, fill = age, group = age)) + 
-  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
-  geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
+ploterr <- function(data, community){
+  data %>% 
+    filter(GMDNAME == community) %>% 
+    ggplot(aes(x = year, fill = age, group = age)) + 
+    geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
+    geom_line(aes(y = `0.5quant`, color = age)) + 
+    geom_point(aes(y = observed, color = age), alpha = 0.5) + 
+    # facet_wrap(vars(split), scales = "free_x") +
+    xlab("") + ylab("predicted/observed") +
+    theme_minimal()
+}
+```
 
-final_male_fit %>% 
-  filter(GMDNAME == "Aeschi bei Spiez") %>% 
-  ggplot(aes(x = year, fill = age, group = age)) + 
-  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
-  geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
+### Zero observed 2015-19
 
-final_male_fit %>% 
-  filter(GMDNAME == "Baden") %>% 
-  ggplot(aes(x = year, fill = age, group = age)) + 
-  geom_ribbon(aes(ymin = `0.025quant`, ymax = `0.975quant`), alpha = 0.1) +
-  geom_line(aes(y = `0.5quant`, color = age)) + 
-  geom_point(aes(y = observed, color = age), alpha = 0.5) + 
-  # facet_wrap(vars(split), scales = "free_x") +
-  xlab("") + ylab("predicted/observed") +
-  theme_minimal()
+```{r}
+ploterr(final_male_fit, "Schwende-Rüte")
+```
+
+### Zero predicted 2015-19
+
+```{r}
+ploterr(final_male_fit, "Saint-Brais")
+```
+
+### Large(ish) absolute error
+
+```{r}
+ploterr(final_male_fit, "Appenzell")
 ```
 
 ## Aggregating all observed and pred over time
@@ -343,17 +307,24 @@ final_male_fit_agg %>%
 
 ## Region effect 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
+# misc checks
+
 length(data_male$id_space)
 length(unique(data_male$id_space))
 
 length(tg3o$GMDNR)
 length(unique(tg3o$GMDNR))
 
-length(final_male$m2$summary.random$id_space$ID)
-length(unique(final_male$m2$summary.random$id_space$ID))
+length(final_male$m1$summary.random$id_space$ID)
+length(unique(final_male$m1$summary.random$id_space$ID))
 
-summary(final_male$m2$summary.random$id_space$ID)
+summary(data_male$id_space)
+summary(final_male$m1$summary.random$id_space$ID)
+```
+
+```{r include=FALSE}
+stopifnot(length(tg3o$GMDNR) * 2 == length(final_male$m1$summary.random$id_space$ID))
 ```
 
 ```{r}
@@ -361,17 +332,24 @@ final_male_space <-
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_male %>% select(GMDNR, id_space) %>% distinct()) %>%
-  left_join(final_male$m2$summary.random$id_space %>%
+  left_join(final_male$m1$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
               select(ID, starts_with("s1")),
-            by = c("id_space" = "ID")) # %>%
+            by = c("id_space" = "ID")) %>% 
+  mutate(s1_m = cut(s1_m, 
+                    breaks = c(0, 0.64, 0.86, 0.95, 1.05, 1.16, 1.57, 10),
+                    right = FALSE))
+
+frq(final_male_space$s1_m)
 ```
 
 ```{r}
-tm_shape(final_male_space) +
-  tm_fill("s1_m", palette = "-BrBG", n = 6, midpoint = 1, 
+tm_shape(se_alt, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(final_male_space, is.master = TRUE) +
+  tm_fill("s1_m", palette = "-PuOr", 
           title = "Region effect") + 
   tm_shape(kt) +
   tm_borders(col = "grey60")
@@ -382,42 +360,47 @@ final_male_space <-
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_male %>% 
-              filter(year == 2020) %>% 
+              filter(year == 2019) %>% 
               group_by(GMDNR, id_space) %>% 
-              summarise(pop_mid_poi = sum(pop_mid_poi)) %>% 
+              summarise(deaths = sum(deaths)) %>% 
               ungroup()) %>%
-  left_join(final_male$m2$summary.random$id_space %>%
+  left_join(final_male$m1$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
               select(ID, starts_with("s1")),
-            by = c("id_space" = "ID")) # %>%
+            by = c("id_space" = "ID")) %>% 
+  mutate(s1_m = cut(s1_m, 
+                    breaks = c(0, 0.64, 0.86, 0.95, 1.05, 1.16, 1.57, 10),
+                    right = FALSE))
 ```
 
 ```{r}
-tm_shape(kt) +
+tm_shape(se_alt, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(kt, is.master = TRUE) +
   tm_borders() +  
   tm_shape(final_male_space) +
-  tm_symbols(size = "pop_mid_poi", col = "s1_m",
+  tm_symbols(size = "deaths", col = "s1_m",
              shape = 15, scale = 2, perceptual = TRUE, 
              legend.size.show = FALSE, 
-             palette = "-BrBG", n = 6, midpoint = 1, 
+             palette = "-PuOr", 
              title.size = "Population", 
              title.col = "Region effect") + 
-  tm_legend(position = c("left", "top"))
+  tm_legend(position = c("LEFT", "TOP"))
 ```
 
 ## Performance 
 
 ```{r}
 marg.variance <- inla.tmarginal(function(x) 1/x,
-                                final_male$m2$marginals.hyperpar$"Precision for id_space")
+                                final_male$m1$marginals.hyperpar$"Precision for id_space")
 inla.zmarginal(marg.variance)
 ```
 
-```{r eval=FALSE, include=FALSE}
-table(final_male$m2$cpo$failure > 0)
-sum(-log(final_male$m2$cpo$cpo), na.rm = TRUE)
+```{r}
+table(final_male$m1$cpo$failure > 0)
+sum(-log(final_male$m1$cpo$cpo), na.rm = TRUE)
 ```
 
 
