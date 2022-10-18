@@ -23,7 +23,7 @@ options(max.print = "75")
 
 library(pacman)
 p_load(tidyverse, magrittr, scales,  
-       sf, tmap, MLmetrics, 
+       sf, tmap, 
        INLA)
 
 import::from("sjmisc", "frq")
@@ -74,7 +74,7 @@ gg = read_rds("data/BfS/gg.Rds")
 tg3o = read_rds("data/BfS/tg3o.Rds")
 se_alt = read_rds("data/BfS/se_alt.Rds")
 
-## From Ubelix
+## Results from Ubelix
 gem_sex_bym2 = read_rds("results/gem_sex_bym2.Rds")
 ```
 
@@ -161,41 +161,6 @@ summary(final_male$m1)
 final_male$m1$summary.hyperpar
 ```
 
-## Year 
-
-```{r echo=FALSE}
-final_male_year = final_male$m1$summary.random$id_year %>% 
-  mutate(ID = ID + 2014, 
-         `0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`))
-
-final_male_year %>% 
-  ggplot(aes(y = ID)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  theme_minimal() + 
-  scale_x_log10() + 
-  # coord_flip() + 
-  ylab("") 
-```
-
-## Age 
-
-```{r echo=FALSE}
-final_male_age = final_male$m1$summary.random$id_age %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`))
-
-final_male_age %>% 
-  ggplot(aes(y = ID)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  theme_minimal() + 
-  ylab("Age group") +
-  scale_y_continuous(labels = unique(data_male$age)) +
-  scale_x_log10()
-```
-
 ## Observed vs predicted
 
 ```{r echo=FALSE}
@@ -205,6 +170,7 @@ final_male_fit = bind_cols(
   data_male,
   final_male$m1$summary.fitted.values
 ) %>% 
+  as_tibble() %>% 
   remove_rownames() %>% 
   mutate(split = ifelse(year < 2020, "Pre-pandemic", "Pandemic"))
 
@@ -400,7 +366,9 @@ table(final_male$m1$cpo$failure > 0)
 sum(-log(final_male$m1$cpo$cpo), na.rm = TRUE)
 ```
 
-# ~~Best~~ First model females
+<!-- ----------------------------------------------------- -->
+
+# Best model females
 
 ## Model 
 
@@ -413,50 +381,18 @@ summary(final_female$m1)
 final_female$m1$summary.hyperpar
 ```
 
-## Year 
-
-```{r echo=FALSE}
-final_female_year = final_female$m1$summary.random$id_year %>% 
-  mutate(ID = ID + 2014, 
-         `0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`))
-
-final_female_year %>% 
-  ggplot(aes(y = ID)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  theme_minimal() + 
-  scale_x_log10() + 
-  # coord_flip() + 
-  ylab("") 
-```
-
-## Age 
-
-```{r echo=FALSE}
-final_female_age = final_female$m1$summary.random$id_age %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`))
-
-final_female_age %>% 
-  ggplot(aes(y = ID)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  theme_minimal() + 
-  ylab("Age group") +
-  scale_y_continuous(labels = unique(data_female$age)) +
-  scale_x_log10()
-```
-
 ## Observed vs predicted
 
-```{r echo=FALSE}
+```{r include=FALSE}
 stopifnot(nrow(final_female$m1$summary.fitted.values) == nrow(data_female))
+```
 
+```{r echo=FALSE}
 final_female_fit = bind_cols(
   data_female,
   final_female$m1$summary.fitted.values
 ) %>% 
+  as_tibble() %>% 
   remove_rownames() %>% 
   mutate(split = ifelse(year < 2020, "Pre-pandemic", "Pandemic"))
 
@@ -489,9 +425,9 @@ errors = final_female_fit %>%
   mutate(diff = deaths - pred,
          perc = ((deaths - pred) / deaths) * 100) %>% 
   # zero predicted
-  mutate(perc = if_else(pred == 0 & deaths > 0, diff * 100, perc)) %>% 
+  mutate(perc = if_else(pred == 0 & deaths != 0, diff * 100, perc)) %>% 
   # zero deaths
-  mutate(perc = if_else(deaths == 0 & pred > 0, diff * 100, perc))
+  mutate(perc = if_else(deaths == 0 & pred != 0, diff * 100, perc))
 ```
 
 ## Aggregating all observed and pred over time
@@ -616,4 +552,37 @@ inla.zmarginal(marg.variance)
 ```{r}
 table(final_female$m1$cpo$failure > 0)
 sum(-log(final_female$m1$cpo$cpo), na.rm = TRUE)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Municipality level estimates 
+
+Combining women and men in 2020  
+
+```{r include=FALSE}
+excess_2020_gem = final_female_fit %>% 
+  bind_rows(final_male_fit) %>% 
+  filter(year == 2020) %>% 
+  select(GMDNR, observed, pop_mid_poi, `0.5quant`) %>% 
+  rename(predicted = `0.5quant`) %>% 
+  group_by(GMDNR) %>% 
+  summarise(observed = sum(observed),
+            population = sum(pop_mid_poi),
+            predicted = as.integer(sum(predicted))) %>% 
+  ungroup() %>% 
+  mutate(diff = observed - predicted,
+         excess_perc = (diff / observed) * 100,
+         excess_pop =  (diff / population) * 1000) %>% 
+  # zero predicted
+  mutate(excess_perc = if_else(predicted == 0 & observed != 0, 
+                               diff * 100, excess_perc)) %>% 
+  # zero deaths
+  mutate(excess_perc = if_else(observed == 0 & predicted != 0, 
+                               diff * 100, excess_perc)) %>% 
+  # zero zero
+  mutate(excess_perc = if_else(observed == 0 & predicted == 0, 
+                               0, excess_perc))
+
+write_rds(excess_2020_gem, "results/excess_2020_gem.Rds")
 ```
