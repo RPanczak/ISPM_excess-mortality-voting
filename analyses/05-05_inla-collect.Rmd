@@ -50,7 +50,6 @@ knitr::opts_knit$set(width = 75)
 
 <!-- ----------------------------------------------------- -->
 
-
 ```{r include=FALSE}
 ## Mortality data
 data = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
@@ -75,106 +74,34 @@ tg3o = read_rds("data/BfS/tg3o.Rds")
 se_alt = read_rds("data/BfS/se_alt.Rds")
 
 ## Results from Ubelix
-gem_sex_bym2 = read_rds("results/gem_sex_bym2.Rds")
+gem_bym2 = read_rds("results/gem_bym2.Rds")
 ```
 
 <!-- ----------------------------------------------------- -->
 
-# Model comparison
-
-## DIC {.tabset}
-
-### Males 
-
-```{r echo=FALSE}
-dotchart(c(
-  gem_sex_bym2$Male$m1$dic$dic,
-  gem_sex_bym2$Male$m2$dic$dic,
-  gem_sex_bym2$Male$m3$dic$dic,
-  gem_sex_bym2$Male$m4$dic$dic
-),
-labels = c("Model1",
-           "Model 2",
-           "Model 3",
-           "Model 4"))
-```
-
-### Females 
-
-```{r echo=FALSE}
-dotchart(c(
-  gem_sex_bym2$Female$m1$dic$dic,
-  gem_sex_bym2$Female$m2$dic$dic,
-  gem_sex_bym2$Female$m3$dic$dic,
-  gem_sex_bym2$Female$m4$dic$dic
-),
-labels = c("Model1",
-           "Model 2",
-           "Model 3",
-           "Model 4"))
-```
-
-## WAIC {.tabset}
-
-### Males 
-
-```{r echo=FALSE}
-dotchart(c(
-  gem_sex_bym2$Male$m1$waic$waic,
-  gem_sex_bym2$Male$m2$waic$waic,
-  gem_sex_bym2$Male$m3$waic$waic,
-  gem_sex_bym2$Male$m4$waic$waic
-),
-labels = c("Model1",
-           "Model 2",
-           "Model 3",
-           "Model 4"))
-```
-
-### Females 
-
-```{r echo=FALSE}
-dotchart(c(
-  gem_sex_bym2$Female$m1$waic$waic,
-  gem_sex_bym2$Female$m2$waic$waic,
-  gem_sex_bym2$Female$m3$waic$waic,
-  gem_sex_bym2$Female$m4$waic$waic
-),
-labels = c("Model1",
-           "Model 2",
-           "Model 3",
-           "Model 4"))
-```
-
-<!-- ----------------------------------------------------- -->
-
-# Best model males
+# Results males
 
 ## Model 
 
-```{r include=FALSE}
-final_male = gem_sex_bym2$Male
-```
-
 ```{r}
-summary(final_male$m1)
-final_male$m1$summary.hyperpar
+summary(gem_bym2$Male)
+gem_bym2$Male$summary.hyperpar
 ```
 
 ## Observed vs predicted
 
 ```{r echo=FALSE}
-stopifnot(nrow(final_male$m1$summary.fitted.values) == nrow(data_male))
+stopifnot(nrow(gem_bym2$Male$summary.fitted.values) == nrow(data_male))
 
-final_male_fit = bind_cols(
+males_fit = bind_cols(
   data_male,
-  final_male$m1$summary.fitted.values
+  gem_bym2$Male$summary.fitted.values
 ) %>% 
   as_tibble() %>% 
   remove_rownames() %>% 
   mutate(split = ifelse(year < 2020, "Pre-pandemic", "Pandemic"))
 
-ggplot(final_male_fit) + 
+ggplot(males_fit) + 
   geom_abline(intercept = 0, slope = 1, color = "darkorchid") +
   geom_point(aes(x = `0.5quant`, y = observed), alpha = 0.22) + 
   facet_wrap(vars(year)) +
@@ -202,13 +129,13 @@ ploterr = function(data, community){
 ### Lugano 
 
 ```{r echo=FALSE}
-ploterr(final_male_fit, "Lugano")
+ploterr(males_fit, "Lugano")
 ```
 
 ## Errors examples 
 
 ```{r echo=FALSE}
-errors = final_male_fit %>% 
+errors = males_fit %>% 
   filter(year < 2020) %>% 
   group_by(GMDNAME) %>% 
   summarize(pred = sum(as.integer(round(`0.5quant`))),
@@ -225,25 +152,25 @@ errors = final_male_fit %>%
 ### Zero observed 2015-19
 
 ```{r echo=FALSE}
-ploterr(final_male_fit, "Schwende-Rüte")
+ploterr(males_fit, "Schwende-Rüte")
 ```
 
 ### Zero predicted 2015-19
 
 ```{r echo=FALSE}
-ploterr(final_male_fit, "Saint-Brais")
+ploterr(males_fit, "Saint-Brais")
 ```
 
 ### Large(ish) absolute error
 
 ```{r echo=FALSE}
-ploterr(final_male_fit, "Appenzell")
+ploterr(males_fit, "Appenzell")
 ```
 
 ## Aggregating all observed and pred over years
 
 ```{r include=FALSE}
-final_male_fit_agg = final_male_fit %>% 
+males_fit_agg = males_fit %>% 
   group_by(year) %>% 
   summarise(observed = sum(observed),
             # population = sum(population),
@@ -253,11 +180,11 @@ final_male_fit_agg = final_male_fit %>%
 ```
 
 ```{r echo=FALSE}
-final_male_fit_agg
+males_fit_agg
 ```
 
 ```{r echo=FALSE}
-final_male_fit_agg %>% 
+males_fit_agg %>% 
   ggplot(aes(x = year)) + 
   geom_line(aes(y = predicted)) + 
   geom_line(aes(y = observed), col = "darkorchid", alpha = 0.5) + 
@@ -277,23 +204,23 @@ length(unique(data_male$id_space))
 length(tg3o$GMDNR)
 length(unique(tg3o$GMDNR))
 
-length(final_male$m1$summary.random$id_space$ID)
-length(unique(final_male$m1$summary.random$id_space$ID))
+length(gem_bym2$Male$summary.random$id_space$ID)
+length(unique(gem_bym2$Male$summary.random$id_space$ID))
 
 summary(data_male$id_space)
-summary(final_male$m1$summary.random$id_space$ID)
+summary(gem_bym2$Male$summary.random$id_space$ID)
 ```
 
 ```{r include=FALSE}
-stopifnot(length(tg3o$GMDNR) * 2 == length(final_male$m1$summary.random$id_space$ID))
+stopifnot(length(tg3o$GMDNR) * 2 == length(gem_bym2$Male$summary.random$id_space$ID))
 ```
 
 ```{r include=FALSE}
-final_male_space =
+males_space =
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_male %>% select(GMDNR, id_space) %>% distinct()) %>%
-  left_join(final_male$m1$summary.random$id_space %>%
+  left_join(gem_bym2$Male$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -305,13 +232,13 @@ final_male_space =
 ```
 
 ```{r}
-frq(final_male_space$s1_m)
+frq(males_space$s1_m)
 ```
 
 ```{r echo=FALSE}
 tm_shape(se_alt, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
-  tm_shape(final_male_space, is.master = TRUE) +
+  tm_shape(males_space, is.master = TRUE) +
   tm_fill("s1_m", palette = "-PuOr", 
           title = "Region effect") + 
   tm_shape(kt) +
@@ -319,7 +246,7 @@ tm_shape(se_alt, is.master = FALSE) +
 ```
 
 ```{r include=FALSE}
-final_male_space =
+males_space =
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_male %>% 
@@ -327,7 +254,7 @@ final_male_space =
               group_by(GMDNR, id_space) %>% 
               summarise(deaths = sum(deaths)) %>% 
               ungroup()) %>%
-  left_join(final_male$m1$summary.random$id_space %>%
+  left_join(gem_bym2$Male$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -343,7 +270,7 @@ tm_shape(se_alt, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
   tm_shape(kt, is.master = TRUE) +
   tm_borders() +  
-  tm_shape(final_male_space) +
+  tm_shape(males_space) +
   tm_symbols(size = "deaths", col = "s1_m",
              shape = 15, scale = 2, perceptual = TRUE, 
              legend.size.show = FALSE, 
@@ -357,46 +284,42 @@ tm_shape(se_alt, is.master = FALSE) +
 
 ```{r}
 marg.variance = inla.tmarginal(function(x) 1/x,
-                               final_male$m1$marginals.hyperpar$"Precision for id_space")
+                               gem_bym2$Male$marginals.hyperpar$"Precision for id_space")
 inla.zmarginal(marg.variance)
 ```
 
 ```{r}
-table(final_male$m1$cpo$failure > 0)
-sum(-log(final_male$m1$cpo$cpo), na.rm = TRUE)
+table(gem_bym2$Male$cpo$failure > 0)
+sum(-log(gem_bym2$Male$cpo$cpo), na.rm = TRUE)
 ```
 
 <!-- ----------------------------------------------------- -->
 
-# Best model females
+# Results females
 
 ## Model 
 
-```{r include=FALSE}
-final_female = gem_sex_bym2$Female
-```
-
 ```{r}
-summary(final_female$m1)
-final_female$m1$summary.hyperpar
+summary(gem_bym2$Female)
+gem_bym2$Female$summary.hyperpar
 ```
 
 ## Observed vs predicted
 
 ```{r include=FALSE}
-stopifnot(nrow(final_female$m1$summary.fitted.values) == nrow(data_female))
+stopifnot(nrow(gem_bym2$Female$summary.fitted.values) == nrow(data_female))
 ```
 
 ```{r echo=FALSE}
-final_female_fit = bind_cols(
+females_fit = bind_cols(
   data_female,
-  final_female$m1$summary.fitted.values
+  gem_bym2$Female$summary.fitted.values
 ) %>% 
   as_tibble() %>% 
   remove_rownames() %>% 
   mutate(split = ifelse(year < 2020, "Pre-pandemic", "Pandemic"))
 
-ggplot(final_female_fit) + 
+ggplot(females_fit) + 
   geom_abline(intercept = 0, slope = 1, color = "darkorchid") +
   geom_point(aes(x = `0.5quant`, y = observed), alpha = 0.22) + 
   facet_wrap(vars(year)) +
@@ -410,13 +333,13 @@ ggplot(final_female_fit) +
 ### Lugano 
 
 ```{r echo=FALSE}
-ploterr(final_female_fit, "Lugano")
+ploterr(females_fit, "Lugano")
 ```
 
 <!-- ## Errors  -->
 
 ```{r include=FALSE}
-errors = final_female_fit %>% 
+errors = females_fit %>% 
   filter(year < 2020) %>% 
   group_by(GMDNAME) %>% 
   summarize(pred = sum(as.integer(round(`0.5quant`))),
@@ -433,7 +356,7 @@ errors = final_female_fit %>%
 ## Aggregating all observed and pred over time
 
 ```{r include=FALSE}
-final_female_fit_agg = final_female_fit %>% 
+females_fit_agg = females_fit %>% 
   group_by(year) %>% 
   summarise(observed = sum(observed),
             # population = sum(population),
@@ -443,11 +366,11 @@ final_female_fit_agg = final_female_fit %>%
 ```
 
 ```{r echo=FALSE}
-final_female_fit_agg
+females_fit_agg
 ```
 
 ```{r echo=FALSE}
-final_female_fit_agg %>% 
+females_fit_agg %>% 
   ggplot(aes(x = year)) + 
   geom_line(aes(y = predicted)) + 
   geom_line(aes(y = observed), col = "darkorchid", alpha = 0.5) + 
@@ -467,23 +390,23 @@ length(unique(data_female$id_space))
 length(tg3o$GMDNR)
 length(unique(tg3o$GMDNR))
 
-length(final_female$m1$summary.random$id_space$ID)
-length(unique(final_female$m1$summary.random$id_space$ID))
+length(gem_bym2$Female$summary.random$id_space$ID)
+length(unique(gem_bym2$Female$summary.random$id_space$ID))
 
 summary(data_female$id_space)
-summary(final_female$m1$summary.random$id_space$ID)
+summary(gem_bym2$Female$summary.random$id_space$ID)
 ```
 
 ```{r include=FALSE}
-stopifnot(length(tg3o$GMDNR) * 2 == length(final_female$m1$summary.random$id_space$ID))
+stopifnot(length(tg3o$GMDNR) * 2 == length(gem_bym2$Female$summary.random$id_space$ID))
 ```
 
 ```{r include=FALSE}
-final_female_space =
+females_space =
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_female %>% select(GMDNR, id_space) %>% distinct()) %>%
-  left_join(final_female$m1$summary.random$id_space %>%
+  left_join(gem_bym2$Female$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -493,13 +416,13 @@ final_female_space =
                     breaks = c(0, 0.64, 0.86, 0.95, 1.05, 1.16, 1.57, 10),
                     right = FALSE))
 
-frq(final_female_space$s1_m)
+frq(females_space$s1_m)
 ```
 
 ```{r echo=FALSE}
 tm_shape(se_alt, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
-  tm_shape(final_female_space, is.master = TRUE) +
+  tm_shape(females_space, is.master = TRUE) +
   tm_fill("s1_m", palette = "-PuOr", 
           title = "Region effect") + 
   tm_shape(kt) +
@@ -507,7 +430,7 @@ tm_shape(se_alt, is.master = FALSE) +
 ```
 
 ```{r include=FALSE}
-final_female_space =
+females_space =
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_female %>% 
@@ -515,7 +438,7 @@ final_female_space =
               group_by(GMDNR, id_space) %>% 
               summarise(deaths = sum(deaths)) %>% 
               ungroup()) %>%
-  left_join(final_female$m1$summary.random$id_space %>%
+  left_join(gem_bym2$Female$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -531,7 +454,7 @@ tm_shape(se_alt, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
   tm_shape(kt, is.master = TRUE) +
   tm_borders() +  
-  tm_shape(final_female_space) +
+  tm_shape(females_space) +
   tm_symbols(size = "deaths", col = "s1_m",
              shape = 15, scale = 2, perceptual = TRUE, 
              legend.size.show = FALSE, 
@@ -545,13 +468,13 @@ tm_shape(se_alt, is.master = FALSE) +
 
 ```{r}
 marg.variance = inla.tmarginal(function(x) 1/x,
-                               final_female$m1$marginals.hyperpar$"Precision for id_space")
+                               gem_bym2$Female$marginals.hyperpar$"Precision for id_space")
 inla.zmarginal(marg.variance)
 ```
 
 ```{r}
-table(final_female$m1$cpo$failure > 0)
-sum(-log(final_female$m1$cpo$cpo), na.rm = TRUE)
+table(gem_bym2$Female$cpo$failure > 0)
+sum(-log(gem_bym2$Female$cpo$cpo), na.rm = TRUE)
 ```
 
 <!-- ----------------------------------------------------- -->
@@ -561,8 +484,8 @@ sum(-log(final_female$m1$cpo$cpo), na.rm = TRUE)
 Combining women and men in 2020  
 
 ```{r include=FALSE}
-excess_2020_gem = final_female_fit %>% 
-  bind_rows(final_male_fit) %>% 
+excess_2020_gem = females_fit %>% 
+  bind_rows(males_fit) %>% 
   filter(year == 2020) %>% 
   select(GMDNR, observed, pop_mid_poi, `0.5quant`) %>% 
   rename(predicted = `0.5quant`) %>% 

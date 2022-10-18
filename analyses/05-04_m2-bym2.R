@@ -35,39 +35,11 @@ threads = parallel::detectCores()
 
 ### Four models tested, all sex stratified & adjusted for age
 
-# base
-f1 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
+formula <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
   year + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
-
-# additionally adjsuting for 2015
-f2 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
-  year + 
-  id_2015 + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
-
-# space time interaction from Bernardinelli et al. (1995)
-# https://www.paulamoraga.com/book-geospatial/sec-arealdataexamplest.html
-f3 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
-  year + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
-  f(id_space2, id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + id_year
-
-# both space time interaction and adjusting for 2015
-f4 <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
-  year + 
-  id_2015 + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
-  f(id_space2, id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + id_year
-
-
-gem_sex_bym2 <- list()
 
 for(s in c("Female", "Male")){
   
@@ -76,46 +48,36 @@ for(s in c("Female", "Male")){
     select(-sex) %>% 
     as.data.frame()
   
-  i <- 1
+  model <- inla(formula = formula,
+                data = data_sex,
+                family = "Poisson",
+                control.family = control.family,
+                control.compute = list(config = TRUE,
+                                       # return.marginals.predictor = TRUE,
+                                       cpo = TRUE,
+                                       dic = TRUE,
+                                       waic = TRUE,
+                                       quantiles = c(0.025, 0.5, 0.975)),
+                control.mode = list(restart = TRUE),
+                num.threads = threads,
+                control.predictor = list(compute = TRUE, link = 1),
+                control.inla = list(
+                  strategy = "simplified.laplace", # default
+                  # strategy = "adaptive",
+                  # strategy = "gaussian",
+                  # strategy = "laplace", # npoints = 21,
+                  int.strategy = "ccd" # default
+                  # int.strategy = "grid", diff.logdens = 4
+                )
+  )
   
-  for(formula in c(f1, f2, f3, f4)) {
-    
-    mname <- paste0("m", i)
-    
-    print(paste(s, mname))
-    
-    model <- inla(formula = formula,
-                  data = data_sex,
-                  family = "Poisson",
-                  control.family = control.family,
-                  control.compute = list(config = TRUE,
-                                         # return.marginals.predictor = TRUE,
-                                         cpo = TRUE,
-                                         dic = TRUE,
-                                         waic = TRUE),
-                  control.mode = list(restart = TRUE),
-                  num.threads = threads,
-                  control.predictor = list(compute = TRUE, link = 1),
-                  control.inla = list(
-                    strategy = "simplified.laplace", # default
-                    # strategy = "adaptive",
-                    # strategy = "gaussian",
-                    # strategy = "laplace", # npoints = 21,
-                    int.strategy = "ccd" # default
-                    # int.strategy = "grid", diff.logdens = 4
-                  )
-    )
-    
-    gem_sex_bym2[[s]][[mname]] <- model
-    
-    rm(model); gc()
-    
-    i <- i + 1
-    
-  }
+  gem_bym2[[s]] <- model
   
-  rm(data_sex); gc()
+  rm(model); gc()
   
 }
 
-write_rds(gem_sex_bym2, "results/gem_sex_bym2.Rds")
+rm(data_sex); gc()
+
+
+write_rds(gem_bym2, "results/gem_bym2.Rds")
