@@ -462,7 +462,7 @@ st_gg %<>%
   arrange(GMDNR)
 ```
 
-## ID variable for INLA
+## ID variables for INLA
 
 ```{r}
 gg %<>% 
@@ -501,11 +501,12 @@ raum <- read_xlsx("data-raw/BfS/Raumgliederungen.xlsx",
   select(-bezirksname) %>% 
   rename(GMDNR = bfs_gde_nummer,
          GMDNAME = gemeindename,
+         KTNR = kantons_nummer,
          KTNAME = kanton,
          ARGRNR = arbeitsmarktgrossregionen_2018,
          ARNR = arbeitsmarktregionen_2018) %>% 
   select(GMDNR, GMDNAME,
-         KTNAME, 
+         KTNR, KTNAME, 
          ARGRNR, ARNR) %>% 
   left_join(
     read_xlsx("data-raw/BfS/Raumgliederungen.xlsx", 
@@ -581,10 +582,12 @@ gg %>%
 ```
 
 ```{r}
-gg %<>% left_join(raum %>% select(GMDNR, KTNAME, 
+gg %<>% left_join(raum %>% select(GMDNR, KTNR, KTNAME, 
                                   ARGRNR, ARGRNAME, ARNR, ARNAME,
                                   border)) %>% 
-  relocate(geometry, .after = last_col())
+  relocate(geometry, .after = last_col()) %>% 
+  mutate(id_kt = as.integer(as.factor(KTNR))) %>% 
+  relocate(id_kt, .after = KTNR)
 
 write_rds(gg, "data/BfS/gg.Rds")
 
@@ -931,6 +934,13 @@ plot(as_Spatial(tg3o), col = "lightgrey")
 plot(diffs, coordinates(as_Spatial(tg3o)), 
      points = FALSE, add = TRUE, col = "red")
 ```
+
+List of 'extra', 'forced' connections:
+
+- Lötschberg Tunnel connecting Kandersteg and Ferden  
+- Lötschberg Base Tunnel connecting Frutigen and Raron  
+- road connection between Ried-Brieg & Simplon  
+
 
 ```{r eval=FALSE, include=FALSE}
 ## List
