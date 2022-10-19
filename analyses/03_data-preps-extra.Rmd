@@ -424,8 +424,10 @@ summary(pop_compare$perc_diff)
 
 ### Age group specific diffs
 
-```{r}
-ggplot(pop_compare, aes(x = pop_diff, y = perc_diff)) + 
+```{r echo=FALSE}
+pop_compare %>% 
+  filter(age != "<40") %>% 
+  ggplot(aes(x = pop_diff, y = perc_diff)) + 
   geom_point(color = "darkorchid", alpha = 0.2) +
   facet_wrap(vars(sex, age), scales = "free") + 
   theme_light()
@@ -435,6 +437,7 @@ ggplot(pop_compare, aes(x = pop_diff, y = perc_diff)) +
 
 ```{r}
 pop_compare_agg <- pop_compare %>% 
+  filter(age != "<40") %>% 
   group_by(GMDNR) %>% 
   summarise(pop = sum(pop),
             pop_ext_poi = sum(pop_ext_poi)) %>% 
@@ -455,7 +458,9 @@ gg_centr <- read_rds("data/BfS/gg.Rds") %>%
 ```{r}
 summary(pop_compare_agg$pop_diff)
 summary(pop_compare_agg$perc_diff)
+```
 
+```{r echo=FALSE}
 ggplot(pop_compare_agg, aes(x = pop_diff, y = perc_diff)) + 
   geom_point(color = "darkorchid", alpha = 0.2) +
   theme_light()
@@ -466,7 +471,7 @@ tmap_mode("view")
 
 tm_shape(gg_centr) +
   tm_bubbles(size = "pop_diff", col = "perc_diff",
-             style = "fixed", breaks = c(-20, -10, -5, -1, 0, 1, 5, 10, 20))
+             style = "fixed", breaks = c(-20, -10, -5, -1, 0, 1, 5, 10, 32))
 ```
 
 ## Getting mid-year pops
@@ -569,7 +574,7 @@ There are `r number(nrow(surplus))` strata from `r number(length(unique(surplus$
 
 ```{r echo=FALSE}
 surplus %>% 
-  select(-GMDNR, -border, -starts_with("AR")) %>% 
+  select(-GMDNR, -KTNR, -starts_with("id_"), -border, -starts_with("AR")) %>% 
   datatable()
 ```
 
@@ -609,7 +614,7 @@ write_rds(pop_mid_poi, "data/BfS/pop_mid_poi.Rds")
 
 # Cartogram
 
-2020 pop counts (*ignoring age structure*) were used to derive cartograms.  
+Using 2019 pop counts (*ignoring age structure*) to derive cartograms to avoid effects of pandemic.  
 
 ## Communities  & pops
 
@@ -627,8 +632,7 @@ carto_data <-
   gg %>% 
   left_join(
     pop_complete %>% 
-      # using 2019 to avoid effects of pandemic 
-      # modelled mid year 2020 can be used too
+      # modelled mid year 2020 can be used too???
       filter(year == 2019) %>% 
       group_by(GMDNR) %>% 
       summarise(pop = sum(pop)) %>% 
@@ -745,19 +749,8 @@ rm(carto, carto_dorling, carto_ncont, carto_se); gc()
 
 ```{r}
 sep3 <- read_rds("../SNC_Swiss-SEP2/FINAL/RDS/ssep3_user_geo.Rds") %>%
-  select(gisid, ssep3, ssep3_d) %>% 
+  select(gisid, ssep3, ssep3_q) %>% 
   st_transform(crs = 2056)
-```
-
-```{r eval=FALSE, include=FALSE}
-# %>%
-#   mutate(ssep3_d = factor(ssep3_d,
-#                           levels = 1:10,
-#                           labels = c("1st - lowest",
-#                                      "2", "3", "4",
-#                                      "5th decile",
-#                                      "6", "7", "8", "9",
-#                                      "10th - highest")))
 ```
 
 Using `r number(nrow(sep3), big.mark = ",")` n'hoods from version 3.0:  
@@ -765,7 +758,7 @@ Using `r number(nrow(sep3), big.mark = ",")` n'hoods from version 3.0:
 ```{r echo=FALSE}
 sep3 %>% 
   st_drop_geometry() %>% 
-  frq(ssep3_d)
+  frq(ssep3_q)
 ```
 
 This is aggregated to the level of `r scales::number(length(unique(st_gg$GMDNR)), big.mark = ",")` communities from swisstopo.
@@ -773,7 +766,7 @@ This is aggregated to the level of `r scales::number(length(unique(st_gg$GMDNR))
 ## STATPOP
 
 ```{r}
-statpop2020 <- read_delim("data-raw/BfS-closed/STATPOP/statpop2020_220098p.zip", 
+statpop2019 <- read_delim("data-raw/BfS-closed/STATPOP/statpop2019_220098p.zip", 
                           delim = ";", escape_double = FALSE, 
                           col_types = cols(STATYEAR = col_integer(), 
                                            SEX = col_integer(), 
@@ -790,7 +783,7 @@ statpop2020 <- read_delim("data-raw/BfS-closed/STATPOP/statpop2020_220098p.zip",
                           trim_ws = TRUE) %>% 
   remove_empty(c("rows", "cols")) %>% clean_names()  
 
-statpop2020_agg <- statpop2020 %>% 
+statpop2019_agg <- statpop2019 %>% 
   rename(egid = federalbuildingid) %>% 
   filter(typeofresidence == 1) %>% 
   filter(populationtype == 1) %>% 
@@ -807,14 +800,14 @@ statpop2020_agg <- statpop2020 %>%
            remove = TRUE)
 ```
 
-Using data from `STATPOP` **2020**.  
+Using data from `STATPOP` **2019**.  
 
-Dataset consists of `r scales::number(nrow(statpop2020), big.mark = ",")` individuals and `r scales::number(nrow(statpop2020_agg), big.mark = ",")` buildings. We selected individuals with type of residence *Hauptwohnsitz*, pop type *Ständige Wohnbevölkerung*, main residency category *Nur ein Hauptwohnsitz* and with valid EGID building ID.  
+Dataset consists of `r scales::number(nrow(statpop2019), big.mark = ",")` individuals and `r scales::number(nrow(statpop2019_agg), big.mark = ",")` buildings. We selected individuals with type of residence *Hauptwohnsitz*, pop type *Ständige Wohnbevölkerung*, main residency category *Nur ein Hauptwohnsitz* and with valid EGID building ID.  
 
 The nearest building with SSEP was assigned for each of these building. The point dataset was then overlaid with community boundaries and summary measures of pop based index were created and pop level SEP was aggregated by community. 
 
 ```{r include=FALSE}
-rm(statpop2020); gc()
+rm(statpop2019); gc()
 ```
 
 ## 'nhood based averages for communities
@@ -843,14 +836,14 @@ ssep3_gem_neigh <- ssep3_gem %>%
 
 ssep3_gem_neigh_geo <- inner_join(gg, ssep3_gem_neigh) %>% 
   filter(!is.na(ssep3_median)) %>% 
-  mutate(median_ssep3_d = ntile(ssep3_median, 10)) %>% 
-  mutate(median_ssep3_d = factor(median_ssep3_d,
-                                 levels = 1:10,
+  mutate(median_ssep3_q = ntile(ssep3_median, 5)) %>% 
+  mutate(median_ssep3_q = factor(median_ssep3_q,
+                                 levels = 1:5,
                                  labels = c("1st - lowest", 
-                                            "2", "3", "4", 
-                                            "5th decile", 
-                                            "6", "7", "8", "9", 
-                                            "10th - highest")))
+                                            "2nd",  
+                                            "3rd quintile", 
+                                            "4th", 
+                                            "5th - highest")))
 
 write_rds(ssep3_gem_neigh_geo, "data/BfS/ssep3_gem_neigh_geo.rds")
 ```
@@ -885,12 +878,12 @@ tmap_mode("view")
 ```
 
 ```{r eval=FALSE, include=FALSE}
-frq(ssep3_gem_neigh_geo$median_ssep3_d)
+frq(ssep3_gem_neigh_geo$median_ssep3_q)
 ```
 
 ```{r echo=FALSE}
 tm_shape(ssep3_gem_neigh_geo) +
-  tm_dots(size = "n", col = "median_ssep3_d", palette = "RdYlGn",
+  tm_dots(size = "n", col = "median_ssep3_q", palette = "RdYlGn",
           scale = .5,  shape = 19)
 ```
 
@@ -898,32 +891,32 @@ tm_shape(ssep3_gem_neigh_geo) +
 
 ```{r eval=FALSE}
 # join to sep3
-statpop2020_agg_sep <- st_join(statpop2020_agg, sep3, join = st_nearest_feature)
+statpop2019_agg_sep <- st_join(statpop2019_agg, sep3, join = st_nearest_feature)
 
 # # fails for unknown and unsolved reasons
-# nearest <- st_nearest_feature(statpop2020_agg, sep3)
-# statpop2020_agg_sep$dist3 <- st_distance(statpop2020_agg_sep, sep3[nearest, ], by_element = TRUE)
-# rm(nearest, statpop2020_agg); gc()
-# summary(statpop2020_agg_sep$dist3)
+# nearest <- st_nearest_feature(statpop2019_agg, sep3)
+# statpop2019_agg_sep$dist3 <- st_distance(statpop2019_agg_sep, sep3[nearest, ], by_element = TRUE)
+# rm(nearest, statpop2019_agg); gc()
+# summary(statpop2019_agg_sep$dist3)
 
-statpop2020_agg_sep_gem <- 
-  st_join(statpop2020_agg_sep, st_gg, join = st_intersects) %>%  
+statpop2019_agg_sep_gem <- 
+  st_join(statpop2019_agg_sep, st_gg, join = st_intersects) %>%  
   relocate(egid, gisid, pop,
-           ssep3, ssep3_d,
+           ssep3, ssep3_q,
            GMDNR) 
 
-write_rds(statpop2020_agg_sep_gem, "data/BfS-closed/SEP/statpop2020_agg_sep_gem.Rds")
+write_rds(statpop2019_agg_sep_gem, "data/BfS-closed/SEP/statpop2019_agg_sep_gem.Rds")
 ```
 
 ```{r include=FALSE}
-rm(statpop2020_agg); gc()
+rm(statpop2019_agg); gc()
 
-statpop2020_agg_sep_gem <- read_rds("data/BfS-closed/SEP/statpop2020_agg_sep_gem.Rds") %>% 
+statpop2019_agg_sep_gem <- read_rds("data/BfS-closed/SEP/statpop2019_agg_sep_gem.Rds") %>% 
   st_drop_geometry()
 ```
 
 ```{r}
-ssep3_gem_pop <- statpop2020_agg_sep_gem %>% 
+ssep3_gem_pop <- statpop2019_agg_sep_gem %>% 
   select(GMDNR, ssep3, pop) %>% 
   uncount(pop) %>% 
   group_by(GMDNR) %>% 
@@ -935,16 +928,15 @@ ssep3_gem_pop <- statpop2020_agg_sep_gem %>%
 #   filter(is.na(ssep3_median))
 
 ssep3_gem_pop_geo <- 
-  left_join(st_gg, ssep3_gem_pop) %>% 
-  filter(!is.na(ssep3_median)) %>% 
-  mutate(median_ssep3_d = ntile(ssep3_median, 10)) %>% 
-  mutate(median_ssep3_d = factor(median_ssep3_d,
-                                 levels = 1:10,
+  left_join(gg, ssep3_gem_pop) %>% 
+  mutate(median_ssep3_q = ntile(ssep3_median, 5)) %>% 
+  mutate(median_ssep3_q = factor(median_ssep3_q,
+                                 levels = 1:5,
                                  labels = c("1st - lowest", 
-                                            "2", "3", "4", 
-                                            "5th decile", 
-                                            "6", "7", "8", "9", 
-                                            "10th - highest")))
+                                            "2nd",  
+                                            "3rd quintile", 
+                                            "4th", 
+                                            "5th - highest")))
 
 write_rds(ssep3_gem_pop_geo, "data/BfS/ssep3_gem_pop_geo.rds")
 ```
@@ -952,17 +944,15 @@ write_rds(ssep3_gem_pop_geo, "data/BfS/ssep3_gem_pop_geo.rds")
 Final map using median index - bubbles scaled to number of people (STATPOP 2020)  
 
 ```{r eval=FALSE, include=FALSE}
-frq(ssep3_gem_pop_geo$median_ssep3_d)
+frq(ssep3_gem_pop_geo$median_ssep3_q)
 
 frq(st_is_valid(ssep3_gem_pop_geo))
 ```
 
-FIXME invalid geom?  
-
 ```{r eval=FALSE, include=FALSE}
 ssep3_gem_pop_geo %>% 
   tm_shape() +
-  tm_dots(size = "pop", col = "median_ssep3_d", palette = "RdYlGn",
+  tm_dots(size = "pop", col = "median_ssep3_q", palette = "RdYlGn",
           scale = .5,  shape = 19)
 ```
 
