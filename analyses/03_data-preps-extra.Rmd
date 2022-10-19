@@ -1125,7 +1125,11 @@ Using `GMDNR` / `mun_id` for deterministic linkage.
 
 ```{r}
 covid_jun_gem <- st_gg %>%  
-  left_join(covid_jun)
+  left_join(covid_jun %>% 
+              select(GMDNR, jaStimmenInProzent)) %>% 
+  mutate(vote_yes = ntile(jaStimmenInProzent, 5)) %>%
+  # mutate(vote_yes = Hmisc::cut2(jaStimmenInProzent, g = 5)) %>% 
+  relocate(geometry, .after = last_col())
 ```
 
 There are few communities that exist on the map but do not exist in the voting dataset:   
@@ -1136,17 +1140,6 @@ covid_jun_gem %>%
   filter(is.na(jaStimmenInProzent)) %>% 
   select(GMDNR, GMDNAME)
 ```
-
-The other way round - exist in the voting dataset but not on the map:  
-
-```{r}
-covid_jun %>% 
-  anti_join(st_gg %>%  
-              st_drop_geometry()) %>% 
-  select(GMDNR, mun_id, mun_name)
-```
-
-FIXME with [#28](https://github.com/RPanczak/ISPM_excess-mortality-voting/issues/28)  
 
 ```{r include=FALSE}
 write_rds(covid_jun, "data/voting/covid_jun.Rds")
@@ -1194,7 +1187,11 @@ Using `GMDNR` / `mun_id` for deterministic linkage.
 
 ```{r}
 covid_nov_gem <- st_gg %>%  
-  left_join(covid_nov)
+  left_join(covid_nov %>% 
+              select(GMDNR, jaStimmenInProzent)) %>% 
+  mutate(vote_yes = ntile(jaStimmenInProzent, 5)) %>%
+  # mutate(vote_yes = Hmisc::cut2(jaStimmenInProzent, g = 5)) %>% 
+  relocate(geometry, .after = last_col())
 ```
 
 There are again few communities that exist on the map but do not exist in the voting dataset:  
@@ -1205,17 +1202,6 @@ covid_nov_gem %>%
   filter(is.na(jaStimmenInProzent)) %>% 
   select(GMDNR, GMDNAME)
 ```
-
-The other way round - exist in the voting dataset but not on the map:  
-
-```{r}
-covid_jun %>% 
-  anti_join(st_gg %>%  
-              st_drop_geometry()) %>% 
-  select(GMDNR, mun_id, mun_name)
-```
-
-FIXME with [#28](https://github.com/RPanczak/ISPM_excess-mortality-voting/issues/28)  
 
 ```{r include=FALSE}
 write_rds(covid_nov, "data/voting/covid_nov.Rds")
