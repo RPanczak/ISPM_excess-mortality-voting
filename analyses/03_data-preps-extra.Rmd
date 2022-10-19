@@ -1012,12 +1012,16 @@ tmap_mode("plot")
 ## Urbanization 1 
 
 ```{r echo=FALSE}
-frq(raum, r_urban1)
+gg21_merged %<>% 
+  mutate(r_urban1 = as_factor(r_urban1)) %>% 
+  mutate(r_urban1 = fct_relevel(r_urban1, "Urban", "Periurban"))
+
+frq(gg21_merged$r_urban1)
 
 tm_shape(se, is.master = FALSE) +
   tm_fill(col = "#a7cdf2")  +
   tm_shape(gg21_merged) +
-  tm_fill(col = "r_urban1")  +
+  tm_fill(col = "r_urban1", palette = "-Accent")  +
   tm_shape(kt) +
   tm_borders()  +
   tm_layout(
@@ -1030,12 +1034,16 @@ tm_shape(se, is.master = FALSE) +
 Using [DEGURBA](https://ec.europa.eu/eurostat/web/degree-of-urbanisation/background).  
 
 ```{r echo=FALSE}
-frq(raum, r_urban2)
+gg21_merged %<>% 
+  mutate(r_urban2 = as_factor(r_urban2)) %>% 
+  mutate(r_urban2 = fct_relevel(r_urban2, "Dense", "Medium"))
+
+frq(gg21_merged$r_urban2)
 
 tm_shape(se, is.master = FALSE) +
   tm_fill(col = "#a7cdf2")  +
   tm_shape(gg21_merged) +
-  tm_fill(col = "r_urban2", palette = "-Set3")  +
+  tm_fill(col = "r_urban2", palette = "-Accent")  +
   tm_shape(kt) +
   tm_borders()  +
   tm_layout(
@@ -1046,12 +1054,17 @@ tm_shape(se, is.master = FALSE) +
 ## Language region
 
 ```{r echo=FALSE}
-frq(raum, r_lang)
+gg21_merged %<>% 
+  mutate(r_lang = if_else(r_lang =="Romansh", "German", r_lang)) %>% 
+  mutate(r_lang = as_factor(r_lang)) %>% 
+  mutate(r_lang = fct_relevel(r_lang, "German", "French"))
+
+frq(gg21_merged$r_lang)
 
 tm_shape(se, is.master = FALSE) +
   tm_fill(col = "#a7cdf2")  +
   tm_shape(gg21_merged) +
-  tm_fill(col = "r_lang")  +
+  tm_fill(col = "r_lang", palette = "-Accent")  +
   tm_shape(kt) +
   tm_borders()  +
   tm_layout(
