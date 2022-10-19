@@ -15,7 +15,9 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing !!!
-  filter(pop_mid_poi > 0) 
+  filter(pop_mid_poi > 0) %>% 
+  # only data till 2019
+  filter(year < 2020)
 
 ### INLA setup
 
@@ -58,18 +60,10 @@ for(s in c("Female", "Male")){
                 quantiles = c(0.025, 0.5, 0.975),
                 control.mode = list(restart = TRUE),
                 num.threads = threads,
-                control.predictor = list(compute = TRUE, link = 1),
-                control.inla = list(
-                  strategy = "simplified.laplace", # default
-                  # strategy = "adaptive",
-                  # strategy = "gaussian",
-                  # strategy = "laplace", # npoints = 21,
-                  int.strategy = "ccd" # default
-                  # int.strategy = "grid", diff.logdens = 4
-                )
+                control.predictor = list(compute = TRUE, link = 1)
   )
   
-  gem_bym2[[s]] <- model
+  gem_bym2_19[[s]] <- model
   
   rm(model); gc()
   
@@ -77,7 +71,7 @@ for(s in c("Female", "Male")){
 
 rm(data_sex); gc()
 
-write_rds(gem_bym2, "results/gem_bym2.Rds")
+write_rds(gem_bym2_19, "results/gem_bym2_19.Rds")
 
 ### #########################################
 ### sex stratified & adjusted for age + canton iid
@@ -106,18 +100,10 @@ for(s in c("Female", "Male")){
                 quantiles = c(0.025, 0.5, 0.975),
                 control.mode = list(restart = TRUE),
                 num.threads = threads,
-                control.predictor = list(compute = TRUE, link = 1),
-                control.inla = list(
-                  strategy = "simplified.laplace", # default
-                  # strategy = "adaptive",
-                  # strategy = "gaussian",
-                  # strategy = "laplace", # npoints = 21,
-                  int.strategy = "ccd" # default
-                  # int.strategy = "grid", diff.logdens = 4
-                )
+                control.predictor = list(compute = TRUE, link = 1)
   )
   
-  gem_bym2_kt[[s]] <- model
+  gem_bym2_19_kt[[s]] <- model
   
   rm(model); gc()
   
@@ -125,4 +111,4 @@ for(s in c("Female", "Male")){
 
 rm(data_sex); gc()
 
-write_rds(gem_bym2_kt, "results/gem_bym2_kt.Rds")
+write_rds(gem_bym2_19_kt, "results/gem_bym2_19_kt.Rds")
