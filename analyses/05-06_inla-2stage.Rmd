@@ -1,0 +1,267 @@
+---
+title: "2020 excess mortality & voting patterns in CH"
+subtitle: "INLA 2 stage models using GEM"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(tidyverse, magrittr, scales,  
+       sf, tmap, 
+       INLA)
+
+import::from("sjmisc", "frq")
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+```{r include=FALSE}
+## Mortality data
+data = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+  filter(age != "<40") %>% 
+  # strata with double zeroes seem to be crashing
+  filter(pop_mid_poi > 0) %>% 
+  # only data till 2019
+  filter(year < 2020)
+
+data_male = data %>% 
+  filter(sex == "Male") %>% 
+  select(-sex) %>% 
+  as.data.frame()
+
+data_female = data %>% 
+  filter(sex == "Female") %>% 
+  select(-sex) %>% 
+  as.data.frame()
+
+## Spatial 
+kt = read_rds("data/BfS/kt.Rds")
+gg = read_rds("data/BfS/gg.Rds")
+tg3o = read_rds("data/BfS/tg3o.Rds")
+se_alt = read_rds("data/BfS/se_alt.Rds")
+
+## Results from Ubelix
+gem_bym2_19 = read_rds("results/gem_bym2_19.Rds")
+gem_bym2_19_kt = read_rds("results/gem_bym2_19_kt.Rds")
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Stage 1 model males
+
+## Canton 
+
+```{r}
+gem_bym2_19$Male$dic$dic
+gem_bym2_19_kt$Male$dic$dic
+
+gem_bym2_19$Male$waic$waic
+gem_bym2_19_kt$Male$waic$waic
+```
+
+## Model 
+
+```{r}
+summary(gem_bym2_19$Male)
+gem_bym2_19$Male$summary.hyperpar
+```
+
+## Calculate the lambda 
+
+```{r}
+# !!!
+# change the name (m1) whne new results are in 
+### !!!
+draws = inla.posterior.sample(50, gem_bym2_19$Male$m1)
+
+rate_draws = lapply(draws, function(i)
+  exp(i$latent[grep("Predictor", rownames(i$latent))]))
+
+# should that match dataset length?
+length(rate_draws[[1]])
+dim(data_male)[1]
+
+# or alternatively
+dim(data_male)[1]*50
+length(unlist(rate_draws))
+
+rate_draws_med = array(unlist(rate_draws), dim = c(dim(data_male)[1], 50))
+dim(rate_draws_med)
+
+data_male_draws = cbind(data_male, as.data.frame(rate_draws_med))
+
+data_male_draws_median = data_male_draws %>% 
+  group_by(age, GMDNR) %>% 
+  summarise_at(vars(V1:V50), mean)  
+```
+
+## Merge with the 2020 data
+
+```{r eval=FALSE, include=FALSE}
+# strata without join to orig data
+anti_join(data_male_draws_median, 
+          data_male %>% 
+            filter(year == 2020) %>% 
+            select(-year))
+
+# are the ones with excluded years (pop == 0)
+data_male %>% 
+  select(year, age, GMDNR, GMDNAME, observed, pop_mid_poi) %>%  
+  filter(age == "70-79" & GMDNR == 2230)
+
+read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+  filter(sex == "Male") %>% 
+  select(year, age, GMDNR, GMDNAME, observed, pop_mid_poi) %>%  
+  filter(age == "70-79" & GMDNR == 2230)
+```
+
+```{r}
+data_2020 = left_join(
+  # data 2020 only
+  data_male %>% 
+    filter(year == 2020) %>% 
+    mutate(deaths = observed) %>% 
+    select(-(ARGRNR:ARNAME), -observed, - year), 
+  data_male_draws_median)
+```
+
+
+```{r}
+for (i in 1:50){
+  sample_males = data_2020[, c(1:16, (i+16))]
+  write_csv(sample_males, 
+            file = paste("results/samples/sample_males_", i, ".csv", sep = ""))
+}
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Stage 2
+
+## Data preps
+
+```{r}
+# read in the sample
+data_2020 = read_csv("results/samples/sample_males_1.csv") %>% 
+  as.data.frame()
+
+covid_jun_gem = read_rds("data/voting/covid_jun_gem.Rds") %>% 
+  st_drop_geometry() %>% 
+  select(GMDNR, vote_yes)
+
+frq(covid_jun_gem, vote_yes)
+
+covid_nov_gem = read_rds("data/voting/covid_nov_gem.Rds") %>% 
+  st_drop_geometry() %>% 
+  select(GMDNR, vote_yes)
+
+frq(covid_nov_gem, vote_yes)
+
+# set the expected column using the index we want to run
+data_2020$Exp = data_2020$pop_mid_poi * data_2020[, 17] # the 17st column the lambda 
+
+data_2020 = left_join(data_2020, covid_jun_gem) %>% 
+  filter(!is.na(vote_yes))
+
+frq(data_2020, vote_yes)
+```
+
+
+## Model run
+
+The stage 2 models are run 100 times (50 males, 50 females) using the samples extracted in stage 1.
+
+```{r}
+hyper.iid = list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
+
+hyper.bym2 = list(theta1 = list("PCprior", c(1, 0.01)), 
+                  theta2 = list("PCprior", c(0.5, 0.5)))
+
+control.family = inla.set.control.family.default()
+
+threads = parallel::detectCores()
+
+formula_2020 = deaths ~ 1 + offset(log(Exp)) + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
+  as.factor(vote_yes) 
+
+# as.factor(border) +
+# as.factor(median_ssep3_q) + 
+# as.factor(r_urban2) + 
+# as.factor(r_lang)
+
+model_2020 = inla(formula = formula_2020,
+                 data = data_2020,
+                 family = "Poisson",
+                 control.family = control.family,
+                 control.compute = list(config = TRUE,
+                                        # return.marginals.predictor = TRUE,
+                                        cpo = TRUE,
+                                        dic = TRUE,
+                                        waic = TRUE),
+                 control.mode = list(restart = TRUE),
+                 num.threads = threads,
+                 control.predictor = list(compute = TRUE, link = 1))
+```
+
+```{r}
+summary(model_2020)
+
+exp(model_2020$summary.fixed)
+```
+
+```{r}
+draws = inla.posterior.sample(100, model_2020)
+
+rate_draws = lapply(draws, function(i)
+  exp(i$latent[grep("Predictor", rownames(i$latent))]))
+
+length(rate_draws[[1]]) == dim(data_2020)[1]
+
+rate_draws_med = array(unlist(rate_draws), dim = c(dim(data_2020)[1], 100))
+# dim(rate_draws_med)
+
+data_2020_male_draws = cbind(data_2020, as.data.frame(rate_draws_med))
+
+
+
+#Once the batch is complete there will be 5000 samples (50 from stage 1 * 100 from stage 2) which are used to extract the various measure of excess mortality 
+# used in the paper. Plus the rate ratios for the covariates.
+```
+
