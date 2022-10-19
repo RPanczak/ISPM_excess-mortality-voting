@@ -508,6 +508,8 @@ raum <- read_xlsx("data-raw/BfS/Raumgliederungen.xlsx",
   select(GMDNR, GMDNAME,
          KTNR, KTNAME, 
          ARGRNR, ARNR) %>% 
+  mutate(id_kt = as.integer(as.factor(KTNR))) %>% 
+  relocate(id_kt, .after = KTNR) %>% 
   left_join(
     read_xlsx("data-raw/BfS/Raumgliederungen.xlsx", 
               skip = 1, sheet = "CH1+CL_GBAE+2018.0") %>% 
@@ -582,12 +584,10 @@ gg %>%
 ```
 
 ```{r}
-gg %<>% left_join(raum %>% select(GMDNR, KTNR, KTNAME, 
+gg %<>% left_join(raum %>% select(GMDNR, KTNR, id_kt, KTNAME, 
                                   ARGRNR, ARGRNAME, ARNR, ARNAME,
                                   border)) %>% 
-  relocate(geometry, .after = last_col()) %>% 
-  mutate(id_kt = as.integer(as.factor(KTNR))) %>% 
-  relocate(id_kt, .after = KTNR)
+  relocate(geometry, .after = last_col()) 
 
 write_rds(gg, "data/BfS/gg.Rds")
 

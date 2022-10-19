@@ -279,7 +279,7 @@ w_deaths_2015_2021_exp <-
   left_join(raum) %>% 
   select(-canton) %>% 
   relocate(GMDNR, .before = GMDNAME) %>% 
-  relocate(KTNAME, .after = GMDNAME) %>% 
+  relocate(KTNR, id_kt, KTNAME, .after = GMDNAME) %>% 
   arrange(GMDNR, year, month, age, sex) %>% 
   filter( !(year == 2021 & month > 6))
 ```
@@ -347,7 +347,7 @@ Excluding 2021.
 ```{r}
 w_deaths_2015_2020_year <- w_deaths_2015_2021_exp %>% 
   filter(year < 2021) %>% 
-  group_by(year, KTNAME, GMDNR, GMDNAME, 
+  group_by(year, KTNAME, KTNR, id_kt, GMDNR, GMDNAME, 
            ARGRNR, ARGRNAME, 
            ARNR, ARNAME, border, 
            sex, age) %>% 
@@ -364,16 +364,13 @@ gg <- read_rds("data/BfS/gg.Rds") %>%
 
 w_deaths_2015_2020_year %<>% 
   left_join(gg) %>% 
-  mutate(id_year = year - 2014,
-         id_age = as.integer(as.factor(age)),
-         id_2015 = if_else(year == 2015, 1, 0), 
-         observed = deaths, 
-         deaths = if_else(year == 2020, NA_integer_, deaths)) %>% 
+  mutate(
+    id_age = as.integer(as.factor(age)),
+    observed = deaths, 
+    deaths = if_else(year == 2020, NA_integer_, deaths)) %>% 
   relocate(observed, .after = deaths) %>% 
   relocate(id_space, .after = GMDNR) %>% 
-  relocate(id_age, .after = age) %>% 
-  relocate(id_year, .after = year) %>% 
-  relocate(id_2015, .after = id_year) 
+  relocate(id_age, .after = age)
 ```
 
 ## Description of data  
@@ -386,10 +383,6 @@ w_deaths_2015_2020_year %>%
 
 ```{r echo=FALSE}
 skim(w_deaths_2015_2020_year)
-```
-
-```{r include=FALSE}
-write_rds(w_deaths_2015_2020_year, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds")
 ```
 
 That obviously decreases the size of the dataset from `r number(nrow(w_deaths_2015_2021_exp), big.mark = ",")` to `r number(nrow(w_deaths_2015_2020_year), big.mark = ",")` (*ie.* 2,163 municipalities each with 2,016 data points * 6 years * 6 age groups * 2 sexes).  
@@ -429,14 +422,6 @@ w_deaths_2015_2020_year %>%
   theme_minimal()
 ```
 
-# Groups for stratified modelling 
-
-```{r}
-groups = as_tibble(expand_grid(age = c("<40", "40-49", "50-59", 
-                                       "60-69", "70-79", "80+"),
-                               sex = c("Female", "Male")))
-```
-
 ```{r include=FALSE}
-write_rds(groups, "data/groups.Rds")
+write_rds(w_deaths_2015_2020_year, "data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year.Rds")
 ```
