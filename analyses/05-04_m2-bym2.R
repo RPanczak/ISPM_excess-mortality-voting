@@ -1,3 +1,5 @@
+### #########################################
+
 set.seed(12345)
 
 library(tidyverse)
@@ -12,11 +14,8 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   # filter(id_space <= 2) %>%
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
-  # strata with double zeroes seem to be crashing
-  filter(pop_mid_poi > 0) %>% 
-  # second id needed for ST interaction
-  mutate(id_space2 = id_space) %>% 
-  relocate(id_space2, .after = id_space)
+  # strata with double zeroes seem to be crashing !!!
+  filter(pop_mid_poi > 0) 
 
 ### INLA setup
 
@@ -33,12 +32,12 @@ control.family <- inla.set.control.family.default()
 
 threads = parallel::detectCores()
 
-### Four models tested, all sex stratified & adjusted for age
+### #########################################
+### sex stratified & adjusted for age
 
 formula <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
   year + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_year, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
 for(s in c("Female", "Male")){
@@ -53,11 +52,10 @@ for(s in c("Female", "Male")){
                 family = "Poisson",
                 control.family = control.family,
                 control.compute = list(config = TRUE,
-                                       # return.marginals.predictor = TRUE,
                                        cpo = TRUE,
                                        dic = TRUE,
-                                       waic = TRUE,
-                                       quantiles = c(0.025, 0.5, 0.975)),
+                                       waic = TRUE),
+                quantiles = c(0.025, 0.5, 0.975),
                 control.mode = list(restart = TRUE),
                 num.threads = threads,
                 control.predictor = list(compute = TRUE, link = 1),
@@ -79,5 +77,52 @@ for(s in c("Female", "Male")){
 
 rm(data_sex); gc()
 
-
 write_rds(gem_bym2, "results/gem_bym2.Rds")
+
+### #########################################
+### sex stratified & adjusted for age + canton iid
+
+formula <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
+  year + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
+  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + 
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
+
+for(s in c("Female", "Male")){
+  
+  data_sex <- data %>% 
+    filter(sex == s) %>% 
+    select(-sex) %>% 
+    as.data.frame()
+  
+  model <- inla(formula = formula,
+                data = data_sex,
+                family = "Poisson",
+                control.family = control.family,
+                control.compute = list(config = TRUE,
+                                       cpo = TRUE,
+                                       dic = TRUE,
+                                       waic = TRUE),
+                quantiles = c(0.025, 0.5, 0.975),
+                control.mode = list(restart = TRUE),
+                num.threads = threads,
+                control.predictor = list(compute = TRUE, link = 1),
+                control.inla = list(
+                  strategy = "simplified.laplace", # default
+                  # strategy = "adaptive",
+                  # strategy = "gaussian",
+                  # strategy = "laplace", # npoints = 21,
+                  int.strategy = "ccd" # default
+                  # int.strategy = "grid", diff.logdens = 4
+                )
+  )
+  
+  gem_bym2_kt[[s]] <- model
+  
+  rm(model); gc()
+  
+}
+
+rm(data_sex); gc()
+
+write_rds(gem_bym2_kt, "results/gem_bym2_kt.Rds")
