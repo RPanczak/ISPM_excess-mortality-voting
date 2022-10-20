@@ -75,11 +75,22 @@ se_alt = read_rds("data/BfS/se_alt.Rds")
 
 ## Results from Ubelix
 gem_bym2 = read_rds("results/gem_bym2.Rds")
+gem_bym2_kt = read_rds("results/gem_bym2_kt.Rds")
 ```
 
 <!-- ----------------------------------------------------- -->
 
-# Results males
+# Males
+
+## Canton 
+
+```{r}
+gem_bym2$Male$dic$dic
+gem_bym2_kt$Male$dic$dic
+
+gem_bym2$Male$waic$waic
+gem_bym2_kt$Male$waic$waic
+```
 
 ## Model 
 
@@ -132,7 +143,7 @@ ploterr = function(data, community){
 ploterr(males_fit, "Lugano")
 ```
 
-## Errors examples 
+### Errors  
 
 ```{r echo=FALSE}
 errors = males_fit %>% 
@@ -149,19 +160,19 @@ errors = males_fit %>%
   mutate(perc = if_else(deaths == 0 & pred > 0, diff * 100, perc))
 ```
 
-### Zero observed 2015-19
+#### Zero observed 2015-19
 
 ```{r echo=FALSE}
 ploterr(males_fit, "Schwende-Rüte")
 ```
 
-### Zero predicted 2015-19
+#### Zero predicted 2015-19
 
 ```{r echo=FALSE}
 ploterr(males_fit, "Saint-Brais")
 ```
 
-### Large(ish) absolute error
+#### Large(ish) absolute error
 
 ```{r echo=FALSE}
 ploterr(males_fit, "Appenzell")
@@ -295,7 +306,17 @@ sum(-log(gem_bym2$Male$cpo$cpo), na.rm = TRUE)
 
 <!-- ----------------------------------------------------- -->
 
-# Results females
+# Females
+
+## Canton 
+
+```{r}
+gem_bym2$Female$dic$dic
+gem_bym2_kt$Female$dic$dic
+
+gem_bym2$Female$waic$waic
+gem_bym2_kt$Female$waic$waic
+```
 
 ## Model 
 
@@ -479,7 +500,7 @@ sum(-log(gem_bym2$Female$cpo$cpo), na.rm = TRUE)
 
 <!-- ----------------------------------------------------- -->
 
-# Municipality level estimates 
+# Quick & dirty municipality level estimates 
 
 Combining women and men in 2020  
 
@@ -509,3 +530,4 @@ excess_2020_gem = females_fit %>%
 
 write_rds(excess_2020_gem, "results/excess_2020_gem.Rds")
 ```
+
