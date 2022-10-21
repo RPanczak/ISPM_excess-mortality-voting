@@ -42,6 +42,8 @@ formula <- deaths ~ 1 + offset(log(pop_mid_poi)) +
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
+gem_bym2_19 <- list()
+
 for(s in c("Female", "Male")){
   
   data_sex <- data %>% 
@@ -81,6 +83,8 @@ formula <- deaths ~ 1 + offset(log(pop_mid_poi)) +
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
+
+gem_bym2_19_kt <- list()
 
 for(s in c("Female", "Male")){
   
