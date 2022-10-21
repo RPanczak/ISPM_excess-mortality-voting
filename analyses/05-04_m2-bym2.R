@@ -15,9 +15,7 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing !!!
-  filter(pop_mid_poi > 0) %>% 
-  # only data till 2019
-  filter(year < 2020)
+  filter(pop_mid_poi > 0) 
 
 ### INLA setup
 
@@ -42,7 +40,7 @@ formula <- deaths ~ 1 + offset(log(pop_mid_poi)) +
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
-gem_bym2_19 <- list()
+gem_bym2 <- list()
 
 for(s in c("Female", "Male")){
   
@@ -65,7 +63,7 @@ for(s in c("Female", "Male")){
                 control.predictor = list(compute = TRUE, link = 1)
   )
   
-  gem_bym2_19[[s]] <- model
+  gem_bym2[[s]] <- model
   
   rm(model); gc()
   
@@ -73,7 +71,7 @@ for(s in c("Female", "Male")){
 
 rm(data_sex); gc()
 
-write_rds(gem_bym2_19, "results/gem_bym2_19.Rds")
+write_rds(gem_bym2, "results/gem_bym2.Rds")
 
 ### #########################################
 ### sex stratified & adjusted for age + canton iid
@@ -84,7 +82,7 @@ formula <- deaths ~ 1 + offset(log(pop_mid_poi)) +
   f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
-gem_bym2_19_kt <- list()
+gem_bym2_kt <- list()
 
 for(s in c("Female", "Male")){
   
@@ -107,7 +105,7 @@ for(s in c("Female", "Male")){
                 control.predictor = list(compute = TRUE, link = 1)
   )
   
-  gem_bym2_19_kt[[s]] <- model
+  gem_bym2_kt[[s]] <- model
   
   rm(model); gc()
   
@@ -115,4 +113,4 @@ for(s in c("Female", "Male")){
 
 rm(data_sex); gc()
 
-write_rds(gem_bym2_19_kt, "results/gem_bym2_19_kt.Rds")
+write_rds(gem_bym2_kt, "results/gem_bym2_kt.Rds")
