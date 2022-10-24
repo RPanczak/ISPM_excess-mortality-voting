@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name="i-bym2"
+#SBATCH --job-name="bym2-19"
 #SBATCH --cpus-per-task=128
 #SBATCH --mem-per-cpu=512
 #SBATCH --time=01:00:00
@@ -9,4 +9,4 @@
 ml vital-it
 ml R/3.6.1
 
-Rscript ~/ISPM_excess-mortality-voting/analyses/05-04_m2-bym2.R
+Rscript ~/ISPM_excess-mortality-voting/analyses/06-02_bym2-19.R
