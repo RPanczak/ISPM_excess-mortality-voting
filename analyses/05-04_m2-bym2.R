@@ -7,7 +7,7 @@ library(spdep)
 library(sf)
 library(INLA)
 
-### data 
+### data 2015-2020 
 
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
   # testing df
@@ -16,6 +16,11 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing !!!
   filter(pop_mid_poi > 0) 
+
+# years
+summary(data$year)
+# prediction for 2020
+table(is.na(data$deaths))
 
 ### INLA setup
 

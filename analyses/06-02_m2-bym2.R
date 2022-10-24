@@ -7,7 +7,7 @@ library(spdep)
 library(sf)
 library(INLA)
 
-### data 
+### data 2015-2019
 
 data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
   # testing df
@@ -18,6 +18,8 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   filter(pop_mid_poi > 0) %>% 
   # only data till 2019
   filter(year < 2020)
+
+summary(data$year)
 
 ### INLA setup
 
