@@ -82,31 +82,60 @@ gem_bym2_kt = read_rds("results/gem_bym2_kt.Rds")
 
 # Males
 
-## Canton 
+## Canton {.tabset}
 
-```{r}
-gem_bym2$Male$dic$dic
-gem_bym2_kt$Male$dic$dic
+### DIC
 
-gem_bym2$Male$waic$waic
-gem_bym2_kt$Male$waic$waic
+```{r echo=FALSE}
+dotchart(c(gem_bym2$Male$dic$dic, gem_bym2_kt$Male$dic$dic), 
+         labels = c("-canton", "+canton"),
+         cex = 0.6, xlab = "DIC")
+```
+
+### WAIC 
+
+```{r echo=FALSE}
+dotchart(c(gem_bym2$Male$waic$waic, gem_bym2_kt$Male$waic$waic), 
+         labels = c("-canton", "+canton"),
+         cex = 0.6, xlab = "WAIC")
 ```
 
 ## Model 
 
 ```{r}
-summary(gem_bym2$Male)
-gem_bym2$Male$summary.hyperpar
+summary(gem_bym2_kt$Male)
+gem_bym2_kt$Male$summary.hyperpar
+```
+
+## Canton effect 
+
+```{r echo=FALSE}
+final_male_kt = gem_bym2_kt$Male$summary.random$id_kt %>% 
+  mutate(ID = ID, 
+         `0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) %>% 
+  left_join(data_male %>% 
+              select(ID = id_kt, KTNAME) %>% 
+              distinct())
+
+final_male_kt %>% 
+  ggplot(aes(y = KTNAME)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  theme_minimal() + 
+  scale_x_log10() +
+  # coord_flip() + 
+  ylab("") 
 ```
 
 ## Observed vs predicted
 
 ```{r echo=FALSE}
-stopifnot(nrow(gem_bym2$Male$summary.fitted.values) == nrow(data_male))
+stopifnot(nrow(gem_bym2_kt$Male$summary.fitted.values) == nrow(data_male))
 
 males_fit = bind_cols(
   data_male,
-  gem_bym2$Male$summary.fitted.values
+  gem_bym2_kt$Male$summary.fitted.values
 ) %>% 
   as_tibble() %>% 
   remove_rownames() %>% 
@@ -215,15 +244,15 @@ length(unique(data_male$id_space))
 length(tg3o$GMDNR)
 length(unique(tg3o$GMDNR))
 
-length(gem_bym2$Male$summary.random$id_space$ID)
-length(unique(gem_bym2$Male$summary.random$id_space$ID))
+length(gem_bym2_kt$Male$summary.random$id_space$ID)
+length(unique(gem_bym2_kt$Male$summary.random$id_space$ID))
 
 summary(data_male$id_space)
-summary(gem_bym2$Male$summary.random$id_space$ID)
+summary(gem_bym2_kt$Male$summary.random$id_space$ID)
 ```
 
 ```{r include=FALSE}
-stopifnot(length(tg3o$GMDNR) * 2 == length(gem_bym2$Male$summary.random$id_space$ID))
+stopifnot(length(tg3o$GMDNR) * 2 == length(gem_bym2_kt$Male$summary.random$id_space$ID))
 ```
 
 ```{r include=FALSE}
@@ -231,7 +260,7 @@ males_space =
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_male %>% select(GMDNR, id_space) %>% distinct()) %>%
-  left_join(gem_bym2$Male$summary.random$id_space %>%
+  left_join(gem_bym2_kt$Male$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -242,7 +271,7 @@ males_space =
                     right = FALSE))
 ```
 
-```{r}
+```{r echo=FALSE}
 frq(males_space$s1_m)
 ```
 
@@ -265,7 +294,7 @@ males_space =
               group_by(GMDNR, id_space) %>% 
               summarise(deaths = sum(deaths)) %>% 
               ungroup()) %>%
-  left_join(gem_bym2$Male$summary.random$id_space %>%
+  left_join(gem_bym2_kt$Male$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -295,46 +324,75 @@ tm_shape(se_alt, is.master = FALSE) +
 
 ```{r}
 marg.variance = inla.tmarginal(function(x) 1/x,
-                               gem_bym2$Male$marginals.hyperpar$"Precision for id_space")
+                               gem_bym2_kt$Male$marginals.hyperpar$"Precision for id_space")
 inla.zmarginal(marg.variance)
 ```
 
 ```{r}
-table(gem_bym2$Male$cpo$failure > 0)
-sum(-log(gem_bym2$Male$cpo$cpo), na.rm = TRUE)
+table(gem_bym2_kt$Male$cpo$failure > 0)
+sum(-log(gem_bym2_kt$Male$cpo$cpo), na.rm = TRUE)
 ```
 
 <!-- ----------------------------------------------------- -->
 
 # Females
 
-## Canton 
+## Canton {.tabset}
 
-```{r}
-gem_bym2$Female$dic$dic
-gem_bym2_kt$Female$dic$dic
+### DIC
 
-gem_bym2$Female$waic$waic
-gem_bym2_kt$Female$waic$waic
+```{r echo=FALSE}
+dotchart(c(gem_bym2$Female$dic$dic, gem_bym2_kt$Female$dic$dic), 
+         labels = c("-canton", "+canton"),
+         cex = 0.6, xlab = "DIC")
+```
+
+### WAIC
+
+```{r echo=FALSE}
+dotchart(c(gem_bym2$Female$waic$waic, gem_bym2_kt$Female$waic$waic), 
+         labels = c("-canton", "+canton"),
+         cex = 0.6, xlab = "WAIC")
 ```
 
 ## Model 
 
 ```{r}
-summary(gem_bym2$Female)
-gem_bym2$Female$summary.hyperpar
+summary(gem_bym2_kt$Female)
+gem_bym2_kt$Female$summary.hyperpar
+```
+
+## Canton effect 
+
+```{r echo=FALSE}
+final_female_kt = gem_bym2_kt$Female$summary.random$id_kt %>% 
+  mutate(ID = ID, 
+         `0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) %>% 
+  left_join(data_female %>% 
+              select(ID = id_kt, KTNAME) %>% 
+              distinct())
+
+final_female_kt %>% 
+  ggplot(aes(y = KTNAME)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  theme_minimal() + 
+  scale_x_log10() +
+  # coord_flip() + 
+  ylab("") 
 ```
 
 ## Observed vs predicted
 
 ```{r include=FALSE}
-stopifnot(nrow(gem_bym2$Female$summary.fitted.values) == nrow(data_female))
+stopifnot(nrow(gem_bym2_kt$Female$summary.fitted.values) == nrow(data_female))
 ```
 
 ```{r echo=FALSE}
 females_fit = bind_cols(
   data_female,
-  gem_bym2$Female$summary.fitted.values
+  gem_bym2_kt$Female$summary.fitted.values
 ) %>% 
   as_tibble() %>% 
   remove_rownames() %>% 
@@ -411,15 +469,15 @@ length(unique(data_female$id_space))
 length(tg3o$GMDNR)
 length(unique(tg3o$GMDNR))
 
-length(gem_bym2$Female$summary.random$id_space$ID)
-length(unique(gem_bym2$Female$summary.random$id_space$ID))
+length(gem_bym2_kt$Female$summary.random$id_space$ID)
+length(unique(gem_bym2_kt$Female$summary.random$id_space$ID))
 
 summary(data_female$id_space)
-summary(gem_bym2$Female$summary.random$id_space$ID)
+summary(gem_bym2_kt$Female$summary.random$id_space$ID)
 ```
 
 ```{r include=FALSE}
-stopifnot(length(tg3o$GMDNR) * 2 == length(gem_bym2$Female$summary.random$id_space$ID))
+stopifnot(length(tg3o$GMDNR) * 2 == length(gem_bym2_kt$Female$summary.random$id_space$ID))
 ```
 
 ```{r include=FALSE}
@@ -427,7 +485,7 @@ females_space =
   tg3o %>%
   select(GMDNR) %>% 
   left_join(data_female %>% select(GMDNR, id_space) %>% distinct()) %>%
-  left_join(gem_bym2$Female$summary.random$id_space %>%
+  left_join(gem_bym2_kt$Female$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -436,7 +494,9 @@ females_space =
   mutate(s1_m = cut(s1_m, 
                     breaks = c(0, 0.64, 0.86, 0.95, 1.05, 1.16, 1.57, 10),
                     right = FALSE))
+```
 
+```{r echo=FALSE}
 frq(females_space$s1_m)
 ```
 
@@ -459,7 +519,7 @@ females_space =
               group_by(GMDNR, id_space) %>% 
               summarise(deaths = sum(deaths)) %>% 
               ungroup()) %>%
-  left_join(gem_bym2$Female$summary.random$id_space %>%
+  left_join(gem_bym2_kt$Female$summary.random$id_space %>%
               mutate(s1_l = exp(`0.025quant`),
                      s1_m = exp(`0.5quant`),
                      s1_u = exp(`0.975quant`)) %>% 
@@ -489,20 +549,20 @@ tm_shape(se_alt, is.master = FALSE) +
 
 ```{r}
 marg.variance = inla.tmarginal(function(x) 1/x,
-                               gem_bym2$Female$marginals.hyperpar$"Precision for id_space")
+                               gem_bym2_kt$Female$marginals.hyperpar$"Precision for id_space")
 inla.zmarginal(marg.variance)
 ```
 
 ```{r}
-table(gem_bym2$Female$cpo$failure > 0)
-sum(-log(gem_bym2$Female$cpo$cpo), na.rm = TRUE)
+table(gem_bym2_kt$Female$cpo$failure > 0)
+sum(-log(gem_bym2_kt$Female$cpo$cpo), na.rm = TRUE)
 ```
 
 <!-- ----------------------------------------------------- -->
 
-# Quick & dirty municipality level estimates 
+<!-- # Quick & dirty municipality level estimates  -->
 
-Combining women and men in 2020  
+<!-- Combining women and men in 2020   -->
 
 ```{r include=FALSE}
 excess_2020_gem = females_fit %>% 
