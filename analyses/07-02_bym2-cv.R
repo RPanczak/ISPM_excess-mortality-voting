@@ -46,38 +46,37 @@ control.family = inla.set.control.family.default()
 threads = parallel::detectCores()
 
 ### #########################################
-### sex stratified & adjusted for age + canton iid
+### sex stratified & adjusted for age
 
-formula = deaths ~ 1 + offset(log(pop_mid_poi)) + 
+formula <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
   year + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
 
-gem_bym2_cv = list()
+gem_bym2_cv <- list()
 
 for(s in c("Female", "Male")){
   
-  data_sex = data %>% 
+  data_sex <- data %>% 
     filter(sex == s) %>% 
     select(-sex) %>% 
     as.data.frame()
   
-  model = inla(formula = formula,
-               data = data_sex,
-               family = "Poisson",
-               control.family = control.family,
-               control.compute = list(config = TRUE,
-                                      cpo = TRUE,
-                                      dic = TRUE,
-                                      waic = TRUE),
-               quantiles = c(0.025, 0.5, 0.975),
-               control.mode = list(restart = TRUE),
-               num.threads = threads,
-               control.predictor = list(compute = TRUE, link = 1)
+  model <- inla(formula = formula,
+                data = data_sex,
+                family = "Poisson",
+                control.family = control.family,
+                control.compute = list(config = TRUE,
+                                       cpo = TRUE,
+                                       dic = TRUE,
+                                       waic = TRUE),
+                quantiles = c(0.025, 0.5, 0.975),
+                control.mode = list(restart = TRUE),
+                num.threads = threads,
+                control.predictor = list(compute = TRUE, link = 1)
   )
   
-  gem_bym2_cv[[s]] = model
+  gem_bym2_cv[[s]] <- model
   
   rm(model); gc()
   
@@ -86,3 +85,45 @@ for(s in c("Female", "Male")){
 rm(data_sex); gc()
 
 write_rds(gem_bym2_cv, "results/gem_bym2_cv.Rds")
+
+### #########################################
+### sex stratified & adjusted for age + canton iid
+
+formula <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
+  year + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
+  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + 
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
+
+gem_bym2_cv_kt <- list()
+
+for(s in c("Female", "Male")){
+  
+  data_sex <- data %>% 
+    filter(sex == s) %>% 
+    select(-sex) %>% 
+    as.data.frame()
+  
+  model <- inla(formula = formula,
+                data = data_sex,
+                family = "Poisson",
+                control.family = control.family,
+                control.compute = list(config = TRUE,
+                                       cpo = TRUE,
+                                       dic = TRUE,
+                                       waic = TRUE),
+                quantiles = c(0.025, 0.5, 0.975),
+                control.mode = list(restart = TRUE),
+                num.threads = threads,
+                control.predictor = list(compute = TRUE, link = 1)
+  )
+  
+  gem_bym2_cv_kt[[s]] <- model
+  
+  rm(model); gc()
+  
+}
+
+rm(data_sex); gc()
+
+write_rds(gem_bym2_cv_kt, "results/gem_bym2_cv_kt.Rds")
