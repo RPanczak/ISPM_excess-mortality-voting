@@ -1,0 +1,200 @@
+---
+title: "2020 excess mortality & voting patterns in CH"
+subtitle: "Excess deaths vs. voting patterns"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(tidyverse, magrittr, scales, 
+       weights, hrbrthemes, ggstatsplot, 
+       sf, tmap)
+
+import::from("sjmisc", "frq")
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Data 
+
+```{r}
+excess_2020_gem = read_rds("results/excess_2020_gem.Rds")
+
+covid_jun_gem = read_rds("data/voting/covid_jun_gem.Rds")
+covid_nov_gem = read_rds("data/voting/covid_nov_gem.Rds")
+```
+
+```{r}
+gghistostats(
+  data       = excess_2020_gem,
+  x          = excess_pop,
+  title      = "Excess deaths / 1000",
+  test.value = 0,
+  binwidth   = 1
+)
+```
+
+```{r}
+gghistostats(
+  data       = excess_2020_gem,
+  x          = excess_perc,
+  title      = "Excess deaths %",
+  test.value = 0,
+  binwidth   = 1
+)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# June vote
+
+```{r eval=FALSE, include=FALSE}
+covid_jun_gem %>%
+  anti_join(excess_2020_gem)
+
+excess_2020_gem %>%
+  anti_join(covid_jun_gem)
+```
+
+```{r}
+covid_jun_gem %<>% 
+  left_join(excess_2020_gem)
+```
+
+## Correlations
+
+### Unweighted {.tabset}
+
+```{r}
+cor.test(covid_jun_gem$excess_pop, 
+         covid_jun_gem$jaStimmenInProzent, 
+         method = "pearson")
+```
+
+### Weighted
+
+```{r}
+wtd.cor(covid_jun_gem$excess_pop, 
+        covid_jun_gem$jaStimmenInProzent, 
+        weight = covid_jun_gem$observed)
+```
+
+## Scatter {.tabset}
+
+### Unweighted
+
+```{r echo=FALSE, warning=FALSE}
+covid_jun_gem %>% 
+  ggplot(aes(x = excess_pop, y = jaStimmenInProzent)) + 
+  geom_smooth() +
+  geom_point(alpha = 0.25) + 
+  theme_ipsum_rc() +
+  xlab("Excess deaths") + ylab("% vote yes")
+```
+
+### Weighted
+
+```{r echo=FALSE, warning=FALSE}
+covid_jun_gem %>% 
+  ggplot(aes(x = excess_pop, y = jaStimmenInProzent)) + 
+  geom_smooth(aes(weight = observed)) +
+  geom_point(aes(size = observed), alpha = 0.25) + 
+  theme_ipsum_rc() +
+  theme(legend.position = "none") +
+  xlab("Excess deaths") + ylab("% vote yes")
+```
+
+<!-- ----------------------------------------------------- -->
+
+# November vote
+
+```{r eval=FALSE, include=FALSE}
+covid_nov_gem %>%
+  anti_join(excess_2020_gem)
+
+excess_2020_gem %>%
+  anti_join(covid_nov_gem)
+```
+
+```{r}
+covid_nov_gem %<>% 
+  left_join(excess_2020_gem)
+```
+
+## Correlations
+
+### Unweighted {.tabset}
+
+```{r}
+cor.test(covid_nov_gem$excess_pop, 
+         covid_nov_gem$jaStimmenInProzent, 
+         method = "pearson")
+```
+
+### Weighted
+
+```{r}
+wtd.cor(covid_nov_gem$excess_pop, 
+        covid_nov_gem$jaStimmenInProzent, 
+        weight = covid_nov_gem$observed)
+```
+
+## Scatter {.tabset}
+
+### Unweighted
+
+```{r echo=FALSE, warning=FALSE}
+covid_nov_gem %>% 
+  ggplot(aes(x = excess_pop, y = jaStimmenInProzent)) + 
+  geom_smooth() +
+  geom_point(alpha = 0.25) + 
+  theme_ipsum_rc() +
+  xlab("Excess deaths") + ylab("% vote yes")
+```
+
+### Weighted
+
+```{r echo=FALSE, warning=FALSE}
+covid_nov_gem %>% 
+  ggplot(aes(x = excess_pop, y = jaStimmenInProzent)) + 
+  geom_smooth(aes(weight = observed)) +
+  geom_point(aes(size = observed), alpha = 0.25) + 
+  theme_ipsum_rc() +
+  theme(legend.position = "none") +
+  xlab("Excess deaths") + ylab("% vote yes")
+```

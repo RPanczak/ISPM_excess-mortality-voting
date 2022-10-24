@@ -15,7 +15,9 @@ data <- read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing !!!
-  filter(pop_mid_poi > 0) 
+  filter(pop_mid_poi > 0) %>% 
+  # only data till 2019
+  filter(year < 2020)
 
 ### INLA setup
 
