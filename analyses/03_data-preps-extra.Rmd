@@ -1098,19 +1098,16 @@ covid_jun <- get_nationalvotes(votedates = "2021-06-13",
 ```
 
 ```{r echo=FALSE, include=FALSE}
-# Votes from abroad are excluded. 
-# covid_jun %>% 
-#   filter(str_detect(mun_name, fixed("Ausland")) | str_detect(mun_name, fixed("l'étranger"))) %>% 
-#   select(mun_name, jaStimmenAbsolut, jaStimmenInProzent)
-
 covid_jun %<>% 
   filter(! str_detect(mun_name, fixed("Ausland"))) %>% 
   filter(! str_detect(mun_name, fixed("tranger"))) %>% 
   mutate(GMDNR = as.numeric(mun_id)) %>% 
-  relocate(GMDNR)
+  relocate(GMDNR) %>% 
+  mutate(vote_yes = ntile(jaStimmenInProzent, 5))
+# mutate(vote_yes = Hmisc::cut2(jaStimmenInProzent, g = 5))
 ```
 
-Dataset consists of `r scales::number(length(unique(covid_jun$mun_id)), big.mark = ",")` communities.
+Dataset consists of `r scales::number(length(unique(covid_jun$mun_id)), big.mark = ",")` communities. Votes from abroad are excluded.  
 
 ### Results preview
 
@@ -1127,8 +1124,6 @@ Using `GMDNR` / `mun_id` for deterministic linkage.
 covid_jun_gem <- st_gg %>%  
   left_join(covid_jun %>% 
               select(GMDNR, jaStimmenInProzent)) %>% 
-  mutate(vote_yes = ntile(jaStimmenInProzent, 5)) %>%
-  # mutate(vote_yes = Hmisc::cut2(jaStimmenInProzent, g = 5)) %>% 
   relocate(geometry, .after = last_col())
 ```
 
@@ -1160,19 +1155,16 @@ covid_nov <- get_nationalvotes(votedates = "2021-11-28",
 ```
 
 ```{r echo=FALSE, include=FALSE}
-# Votes from abroad are excluded. 
-# covid_nov %>% 
-#   filter(str_detect(mun_name, fixed("Ausland")) | str_detect(mun_name, fixed("l'étranger"))) %>% 
-#   select(mun_name, jaStimmenAbsolut, jaStimmenInProzent)
-
 covid_nov %<>% 
   filter(! str_detect(mun_name, fixed("Ausland"))) %>% 
   filter(! str_detect(mun_name, fixed("tranger"))) %>% 
   mutate(GMDNR = as.numeric(mun_id)) %>% 
-  relocate(GMDNR)
+  relocate(GMDNR) %>% 
+  mutate(vote_yes = ntile(jaStimmenInProzent, 5))
+# mutate(vote_yes = Hmisc::cut2(jaStimmenInProzent, g = 5))
 ```
 
-Dataset consists of `r scales::number(length(unique(covid_nov$mun_id)), big.mark = ",")` communities.
+Dataset consists of `r scales::number(length(unique(covid_nov$mun_id)), big.mark = ",")` communities. Votes from abroad are excluded.  
 
 ### Results preview
 
@@ -1194,7 +1186,7 @@ covid_nov_gem <- st_gg %>%
   relocate(geometry, .after = last_col())
 ```
 
-There are again few communities that exist on the map but do not exist in the voting dataset:  
+Again, there are few communities that exist on the map but do not exist in the voting dataset:  
 
 ```{r echo=FALSE}
 covid_nov_gem %>% 
