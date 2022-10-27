@@ -1,0 +1,135 @@
+---
+title: "2020 excess mortality & voting patterns in CH"
+subtitle: "Redistributed cantonal deaths"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(tidyverse, magrittr, skimr, scales,  
+       sf, tmap)
+
+import::from("sjmisc", "frq")
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Data 
+
+## Canton 
+
+Modelled, expected deaths by canton in 2020 from [Riou *et al.*](https://www.medrxiv.org/content/10.1101/2022.08.05.22278458v1).   
+
+```{r include=FALSE}
+exp_deaths_2020_kt = read_rds("data/canton/exp_deaths_2020_kt.rds") %>% select(-year)
+```
+
+Contains iterations of diff results  
+
+```{r}
+max(exp_deaths_2020_kt$it)
+```
+
+Example of one iteration  
+
+```{r echo=FALSE}
+exp_deaths_2020_kt %>% 
+  filter(it == 1) %>% 
+  skim()
+```
+
+## Municipality 
+
+Data prepared earlier; collapsing age groups and renaming variables to match with cantonal data.  
+
+```{r}
+w_deaths_2020_year_fin = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+  filter(year == 2020) %>% select(-year) %>% 
+  rename(age_group = age,
+         canton = KTNAME) %>% 
+  mutate(age_group = if_else(age_group == "40-49", "40-59", age_group),
+         age_group = if_else(age_group == "50-59", "40-59", age_group)) %>% 
+  group_by(canton, GMDNR, age_group, sex) %>% 
+  summarise(observed = sum(observed),
+            pop_mid_poi = sum(pop_mid_poi)) %>% 
+  ungroup()
+```
+
+```{r echo=FALSE}
+w_deaths_2020_year_fin %>% 
+  skim()
+```
+
+## Spatial 
+
+```{r}
+kt = read_rds("data/BfS/kt.Rds")
+gg = read_rds("data/BfS/gg.Rds")
+tg3o = read_rds("data/BfS/tg3o.Rds")
+se_alt = read_rds("data/BfS/se_alt.Rds")
+```
+
+## Downscale function 
+
+@jriou method to downscale cantonal deaths to municipality level.  
+
+```{r}
+source("R/downscale_year.R")
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Downscale 
+
+```{r}
+exc_deaths_2020_year = downscale_year(exp_deaths_2020_kt, w_deaths_2020_year_fin)
+```
+
+Again, contains iterations of diff results  
+
+```{r}
+max(exc_deaths_2020_year$it)
+```
+
+Example of one iteration  
+
+```{r echo=FALSE}
+exc_deaths_2020_year %>% 
+  filter(it == 1) %>% 
+  skim()
+```
