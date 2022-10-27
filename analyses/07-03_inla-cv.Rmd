@@ -1,6 +1,6 @@
 ---
 title: "2020 excess mortality & voting patterns in CH"
-subtitle: "INLA models using GEM"
+subtitle: "Assesing bias & coverage of 2015-19 models"
 author: "Radek Panczak"
 date: "`r Sys.Date()`"
 output:
@@ -54,7 +54,7 @@ knitr::opts_knit$set(width = 75)
 
 ## Mortality data
 
-```{r include=FALSE}
+```{r}
 data = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing
@@ -75,7 +75,7 @@ data_male = data %>%
 
 ## Spatial 
 
-```{r include=FALSE}
+```{r}
 kt = read_rds("data/BfS/kt.Rds")
 gg = read_rds("data/BfS/gg.Rds")
 tg3o = read_rds("data/BfS/tg3o.Rds")
@@ -84,13 +84,16 @@ se_alt = read_rds("data/BfS/se_alt.Rds")
 
 ## Results from Ubelix
 
-```{r include=FALSE}
+```{r}
 gem_bym2_cv = read_rds("results/gem_bym2_cv.Rds")
 gem_bym2_cv_kt = read_rds("results/gem_bym2_cv_kt.Rds")
-
-yoi = 2015
 ```
 
+## Year of interest 
+
+```{r}
+yoi = 2015
+```
 
 <!-- ----------------------------------------------------- -->
 
@@ -193,7 +196,7 @@ ggplot(males_fit_kt) +
   theme_minimal()
 ```
 
-# Bias {.tabset} 
+# Age bias {.tabset} 
 
 ## No canton
 
@@ -261,7 +264,7 @@ males_fit_kt_2000 %>%
 
 # Coverage {.tabset} 
 
-### No canton
+## No canton
 
 ```{r echo=FALSE}
 mosaicplot(with(males_fit_2000, table(age, within)),
@@ -313,7 +316,7 @@ tm_shape(se_alt, is.master = FALSE) +
   tm_legend(position = c("LEFT", "TOP"))
 ```
 
-### Canton
+## Canton
 
 ```{r echo=FALSE}
 mosaicplot(with(males_fit_kt_2000, table(age, within)),
