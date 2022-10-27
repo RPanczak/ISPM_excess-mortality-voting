@@ -1,0 +1,366 @@
+---
+title: "2020 excess mortality & voting patterns in CH"
+subtitle: "INLA models using GEM"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(tidyverse, magrittr, scales,  
+       sf, tmap, 
+       INLA)
+
+import::from("sjmisc", "frq")
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Data 
+
+## Mortality data
+
+```{r include=FALSE}
+data = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+  filter(age != "<40") %>% 
+  # strata with double zeroes seem to be crashing
+  filter(pop_mid_poi > 0)  %>% 
+  # only data till 2019
+  filter(year < 2020)
+
+data_male = data %>% 
+  filter(sex == "Male") %>% 
+  select(-sex) %>% 
+  as.data.frame()
+
+# data_female = data %>% 
+#   filter(sex == "Female") %>% 
+#   select(-sex) %>% 
+#   as.data.frame()
+```
+
+## Spatial 
+
+```{r include=FALSE}
+kt = read_rds("data/BfS/kt.Rds")
+gg = read_rds("data/BfS/gg.Rds")
+tg3o = read_rds("data/BfS/tg3o.Rds")
+se_alt = read_rds("data/BfS/se_alt.Rds")
+```
+
+## Results from Ubelix
+
+```{r include=FALSE}
+gem_bym2_cv = read_rds("results/gem_bym2_cv.Rds")
+gem_bym2_cv_kt = read_rds("results/gem_bym2_cv_kt.Rds")
+
+yoi = 2015
+```
+
+
+<!-- ----------------------------------------------------- -->
+
+# Canton {.tabset}
+
+Models with and without canton (iid).  
+
+## DIC
+
+```{r echo=FALSE}
+dotchart(c(gem_bym2_cv$Male$dic$dic, gem_bym2_cv_kt$Male$dic$dic), 
+         labels = c("-canton", "+canton"),
+         cex = 0.6, xlab = "DIC")
+```
+
+## WAIC 
+
+```{r echo=FALSE}
+dotchart(c(gem_bym2_cv$Male$waic$waic, gem_bym2_cv_kt$Male$waic$waic), 
+         labels = c("-canton", "+canton"),
+         cex = 0.6, xlab = "WAIC")
+```
+
+# Models {.tabset} 
+
+## No canton
+
+```{r}
+summary(gem_bym2_cv$Male)
+```
+
+## Canton
+
+```{r}
+summary(gem_bym2_cv_kt$Male)
+```
+
+## Canton effect 
+
+```{r echo=FALSE}
+final_male_kt = gem_bym2_cv_kt$Male$summary.random$id_kt %>% 
+  mutate(ID = ID, 
+         `0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) %>% 
+  left_join(data_male %>% 
+              select(ID = id_kt, KTNAME) %>% 
+              distinct())
+
+final_male_kt %>% 
+  ggplot(aes(y = KTNAME)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
+  theme_minimal() + 
+  scale_x_log10() +
+  ylab("") 
+```
+
+# Observed vs predicted {.tabset} 
+
+## No canton
+
+```{r echo=FALSE}
+stopifnot(nrow(gem_bym2_cv$Male$summary.fitted.values) == nrow(data_male))
+
+males_fit = bind_cols(
+  data_male,
+  gem_bym2_cv$Male$summary.fitted.values
+) %>% 
+  as_tibble() %>% 
+  remove_rownames()
+
+ggplot(males_fit) + 
+  geom_abline(intercept = 0, slope = 1, color = "darkorchid") +
+  geom_point(aes(x = `0.5quant`, y = observed), alpha = 0.22) + 
+  facet_wrap(vars(year)) +
+  coord_fixed() +
+  xlab("predicted") + 
+  theme_minimal()
+```
+
+## Canton
+
+```{r echo=FALSE}
+stopifnot(nrow(gem_bym2_cv_kt$Male$summary.fitted.values) == nrow(data_male))
+
+males_fit_kt = bind_cols(
+  data_male,
+  gem_bym2_cv_kt$Male$summary.fitted.values
+) %>% 
+  as_tibble() %>% 
+  remove_rownames()
+
+ggplot(males_fit_kt) + 
+  geom_abline(intercept = 0, slope = 1, color = "darkorchid") +
+  geom_point(aes(x = `0.5quant`, y = observed), alpha = 0.22) + 
+  facet_wrap(vars(year)) +
+  coord_fixed() +
+  xlab("predicted") + 
+  theme_minimal()
+```
+
+# Bias {.tabset} 
+
+## No canton
+
+```{r include=FALSE}
+males_fit_2000 = males_fit %>% 
+  filter(year == yoi) %>% 
+  select(-year) %>% 
+  mutate(predicted = as.integer(round(`0.5quant`)),
+         lower = as.integer(round(`0.025quant`)),
+         upper = as.integer(round(`0.975quant`)),
+         diff = observed - predicted,
+         perc = (diff / observed) * 100,
+         within = if_else(observed >= lower & observed <= upper, 
+                          "yes", "no")) %>% 
+  # zero predicted
+  mutate(perc = if_else(predicted == 0 & observed > 0, 
+                        diff * 100, perc)) %>% 
+  # zero deaths
+  mutate(perc = if_else(observed == 0 & predicted > 0, 
+                        diff * 100, perc))
+```
+
+```{r echo=FALSE}
+males_fit_2000 %>% 
+  ggplot(aes(x = diff, y = perc)) + 
+  # geom_smooth(aes(weight = observed)) +
+  geom_point(aes(size = observed), alpha = 0.25) + 
+  facet_wrap(vars(age)) +
+  theme_light() +
+  theme(legend.position = "none") +
+  xlab("Excess deaths") + ylab("% of observed")
+```
+
+## Canton
+
+```{r include=FALSE}
+males_fit_kt_2000 = males_fit_kt %>% 
+  filter(year == yoi) %>% 
+  select(-year) %>% 
+  mutate(predicted = as.integer(round(`0.5quant`)),
+         lower = as.integer(round(`0.025quant`)),
+         upper = as.integer(round(`0.975quant`)),
+         diff = observed - predicted,
+         perc = (diff / observed) * 100,
+         within = if_else(observed >= lower & observed <= upper, 
+                          "yes", "no")) %>% 
+  # zero predicted
+  mutate(perc = if_else(predicted == 0 & observed > 0, 
+                        diff * 100, perc)) %>% 
+  # zero deaths
+  mutate(perc = if_else(observed == 0 & predicted > 0, 
+                        diff * 100, perc))
+```
+
+```{r echo=FALSE}
+males_fit_kt_2000 %>% 
+  ggplot(aes(x = diff, y = perc)) + 
+  # geom_smooth(aes(weight = observed)) +
+  geom_point(aes(size = observed), alpha = 0.25) + 
+  facet_wrap(vars(age)) +
+  theme_light() +
+  theme(legend.position = "none") +
+  xlab("Excess deaths") + ylab("% of observed")
+```
+
+# Coverage {.tabset} 
+
+### No canton
+
+```{r echo=FALSE}
+mosaicplot(with(males_fit_2000, table(age, within)),
+           main = "Coverage across age")
+
+mosaicplot(with(males_fit_2000, table(median_ssep3_q, within)),
+           main = "Coverage across SEP")
+
+mosaicplot(with(males_fit_2000, table(r_urban1, within)),
+           main = "Coverage across urbanization")
+
+# mosaicplot(with(males_fit_2000, table(r_urban2, within)),
+#            main = "Coverage across urbanization")
+
+mosaicplot(with(males_fit_2000, table(r_lang, within)),
+           main = "Coverage across language region")
+```
+
+```{r include=FALSE}
+males_fit_2000_space =
+  tg3o %>%
+  select(GMDNR) %>% 
+  left_join(males_fit_2000 %>% 
+              select(GMDNR, GMDNAME, observed, within))
+```
+
+```{r echo=FALSE}
+tm_shape(se_alt, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(males_fit_2000_space, is.master = TRUE) +
+  tm_fill("within", palette = "-Pastel2",
+          title = "Coverage") + 
+  tm_shape(kt) +
+  tm_borders(col = "grey60")
+```
+
+```{r echo=FALSE}
+tm_shape(se_alt, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(kt, is.master = TRUE) +
+  tm_borders() +  
+  tm_shape(males_fit_2000_space) +
+  tm_symbols(size = "observed", col = "within",
+             shape = 15, scale = 2, perceptual = TRUE, 
+             legend.size.show = FALSE, 
+             palette = "-Pastel2", 
+             title.size = "Population", 
+             title.col = "Coverage") + 
+  tm_legend(position = c("LEFT", "TOP"))
+```
+
+### Canton
+
+```{r echo=FALSE}
+mosaicplot(with(males_fit_kt_2000, table(age, within)),
+           main = "Coverage across age")
+
+mosaicplot(with(males_fit_kt_2000, table(median_ssep3_q, within)),
+           main = "Coverage across SEP")
+
+mosaicplot(with(males_fit_kt_2000, table(r_urban1, within)),
+           main = "Coverage across urbanization")
+
+# mosaicplot(with(males_fit_kt_2000, table(r_urban2, within)),
+#            main = "Coverage across urbanization")
+
+mosaicplot(with(males_fit_kt_2000, table(r_lang, within)),
+           main = "Coverage across language region")
+```
+
+```{r include=FALSE}
+males_fit_kt_2000_space =
+  tg3o %>%
+  select(GMDNR) %>% 
+  left_join(males_fit_kt_2000 %>% 
+              select(GMDNR, GMDNAME, observed, within))
+```
+
+```{r echo=FALSE}
+tm_shape(se_alt, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(males_fit_kt_2000_space, is.master = TRUE) +
+  tm_fill("within", palette = "-Pastel2",
+          title = "Coverage") + 
+  tm_shape(kt) +
+  tm_borders(col = "grey60")
+```
+
+```{r echo=FALSE}
+tm_shape(se_alt, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(kt, is.master = TRUE) +
+  tm_borders() +  
+  tm_shape(males_fit_kt_2000_space) +
+  tm_symbols(size = "observed", col = "within",
+             shape = 15, scale = 2, perceptual = TRUE, 
+             legend.size.show = FALSE, 
+             palette = "-Pastel2", 
+             title.size = "Population", 
+             title.col = "Coverage") + 
+  tm_legend(position = c("LEFT", "TOP"))
+```
