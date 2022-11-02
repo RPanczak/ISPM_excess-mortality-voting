@@ -207,6 +207,12 @@ exp_deaths_2020_year_gem %<>%
 ## Bring covariates 
 
 ```{r}
+exp_deaths_2020_year %<>% 
+  left_join(read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+              select(GMDNR, GMDNAME, border, 
+                     median_ssep3_q, r_urban1, r_urban2, r_lang) %>% 
+              distinct())
+
 exp_deaths_2020_year_agg %<>% 
   left_join(read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
               select(GMDNR, GMDNAME, border, 
@@ -261,6 +267,14 @@ exp_deaths_2020_year_gem %<>%
   filter(!is.na(vote_yes_nov_cat)) %>% 
   relocate(GMDNAME, .after = GMDNR)
 
+exp_deaths_2020_year %<>% 
+  left_join(covid_nov) %>% 
+  # filter(!is.na(vote_yes_nov_cat)) %>% 
+  left_join(covid_jun) %>% 
+  # filter(!is.na(vote_yes_jun_cat)) %>% 
+  relocate(GMDNAME, .after = GMDNR)
+
+write_rds(exp_deaths_2020_year, "results/exp_deaths_2020_year.Rds")
 write_rds(exp_deaths_2020_year_agg, "results/exp_deaths_2020_year_agg.Rds")
 write_rds(exp_deaths_2020_year_gem, "results/exp_deaths_2020_year_gem.Rds")
 ```

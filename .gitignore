@@ -28,3 +28,4 @@
 # Project specific
 admin/
 analyses/old
+results/exp_deaths_2020_year.Rds 
