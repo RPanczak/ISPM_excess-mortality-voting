@@ -157,12 +157,16 @@ exp_deaths_2020_year_agg = exp_deaths_2020_year %>%
   summarise(
     # observed
     munici_observed = first(munici_observed),
-    pop_mid_poi = first(pop_mid_poi),
+    population = first(pop_mid_poi),
     # modelled x1000
-    munici_expected_med = as.integer(quantile(munici_exp_deaths, 0.5)),
-    munici_excess_lo = as.integer(quantile(munici_excess, 0.025)),
-    munici_excess_med = as.integer(quantile(munici_excess, 0.5)),
-    munici_excess_up = as.integer(quantile(munici_excess, 0.975))
+    # expected
+    munici_expected_lo = quantile(munici_exp_deaths, 0.025),
+    munici_expected_med = quantile(munici_exp_deaths, 0.5),
+    munici_expected_up = quantile(munici_exp_deaths, 0.975),
+    # excess
+    munici_excess_lo = quantile(munici_excess, 0.025),
+    munici_excess_med = quantile(munici_excess, 0.5),
+    munici_excess_up = quantile(munici_excess, 0.975)
   ) %>% 
   ungroup()
 ```
@@ -174,29 +178,31 @@ exp_deaths_2020_year_gem = exp_deaths_2020_year_agg %>%
   group_by(canton, GMDNR) %>% 
   summarise(
     # community level totals
-    munici_excess_med = sum(munici_excess_med),
+    population = sum(population),
     munici_observed = sum(munici_observed),
     munici_expected_med = sum(munici_expected_med),
-    pop_mid_poi = sum(pop_mid_poi)
+    munici_excess_med = sum(munici_excess_med)
   ) %>% 
   ungroup() %>% 
-  # percent and per pop
-  mutate(munici_excess_perc = (munici_excess_med / munici_observed) * 100,
-         munici_excess_pop =  (munici_excess_med / pop_mid_poi) * 1000) %>% 
-  # zero expected & nonzero observed
-  mutate(munici_excess_perc = if_else(munici_expected_med == 0 & munici_observed != 0, 
-                                      munici_observed * 100, 
-                                      munici_excess_perc)) %>% 
-  # nonzero expected & zero observed
-  mutate(munici_excess_perc = if_else(munici_expected_med != 0 & munici_observed == 0, 
-                                      munici_expected_med * 100 * -1, 
-                                      munici_excess_perc)) %>% 
-  # zero zero
-  mutate(munici_excess_perc = if_else(munici_observed == 0 & munici_expected_med == 0, 
-                                      0, 
-                                      munici_excess_perc))
+  # ratio and per pop
+  mutate(munici_excess_rat = munici_excess_med / munici_expected_med,
+         munici_excess_pop =  (munici_excess_med / population) * 1000) 
 ```
 
+Special situation arises in this aggregation when calculating a *ratio of excess deaths to observed* deaths. There are communities where expected number of deaths is zero. That leads to ratio being `Inf` in cases where excess is > 0 and to `NaN` where excess is (also) == 0.  
+
+```{r echo=FALSE}
+# frq(exp_deaths_2020_year_gem, munici_expected_med == 0 & munici_excess_med != 0)
+# frq(exp_deaths_2020_year_gem, munici_expected_med == 0 & munici_excess_med == 0)
+frq(exp_deaths_2020_year_gem, munici_expected_med == 0)
+```
+
+These communities' ratios were recoded to `NA`.  
+
+```{r include=FALSE}
+exp_deaths_2020_year_gem %<>% 
+  mutate(munici_excess_rat = ifelse(munici_expected_med == 0, NA, munici_excess_rat))
+```
 
 ## Bring covariates 
 
@@ -261,11 +267,9 @@ write_rds(exp_deaths_2020_year_gem, "results/exp_deaths_2020_year_gem.Rds")
 
 <!-- ----------------------------------------------------- -->
 
-# EDA
+# Excess deaths per 1000 pop
 
-## Excess deaths per 1000 pop
-
-### Distribution 
+## Distribution 
 
 ```{r echo=FALSE}
 ggplot(exp_deaths_2020_year_gem, aes(x = munici_excess_pop)) + 
@@ -274,64 +278,80 @@ ggplot(exp_deaths_2020_year_gem, aes(x = munici_excess_pop)) +
   theme_light()
 ```
 
-### Maps
+## Maps
 
 ```{r include=FALSE}
-temp =
-  tg3o %>%
+tg3o %<>%
   select(GMDNR) %>% 
   right_join(exp_deaths_2020_year_gem) %>% 
   mutate(munici_excess_pop_cat = Hmisc::cut2(munici_excess_pop, g = 5))
+```
 
+```{r echo=FALSE}
+frq(tg3o$munici_excess_pop_cat)
+```
+
+### Choropleth 
+
+```{r echo=FALSE}
 tmap_mode("plot")
-```
 
-```{r echo=FALSE}
-frq(temp$munici_excess_pop_cat)
-```
-
-```{r echo=FALSE}
 tm_shape(se_alt, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
-  tm_shape(temp, is.master = TRUE) +
+  tm_shape(tg3o, is.master = TRUE) +
   tm_fill("munici_excess_pop_cat", palette = "-PuOr", 
-          title = "Escess / 1000") + 
+          title = "Excess / 1000") + 
   tm_shape(kt) +
   tm_borders(col = "grey60")
 ```
+
+### Proportional symbols 
+
+Symbol size perceptually scaled to population size. 
 
 ```{r echo=FALSE}
 tm_shape(se_alt, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
   tm_shape(kt, is.master = TRUE) +
   tm_borders() +  
-  tm_shape(temp) +
-  tm_symbols(size = "pop_mid_poi", col = "munici_excess_pop_cat",
-             shape = 15, scale = 2, perceptual = TRUE, 
-             legend.size.show = FALSE, 
-             palette = "-PuOr", 
-             title.size = "Population", 
-             title.col = "Escess / 1000") + 
+  tm_shape(tg3o) +
+  tm_symbols(
+    # size = "munici_excess_med",
+    # size = "munici_observed",
+    size = "population",
+    col = "munici_excess_pop_cat",
+    shape = 15, scale = 2, perceptual = TRUE, 
+    legend.size.show = TRUE, 
+    palette = "-PuOr", 
+    title.size = "Excess deaths", 
+    title.col = "Excess / 1000") + 
   tm_legend(position = c("LEFT", "TOP"))
 ```
+
+<!-- ----------------------------------------------------- -->
+
+# EDA June vote 
+
+## Map 
 
 ```{r echo=FALSE}
 tmap_mode("view")
 
 tm_shape(se_alt, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
-  tm_shape(temp, is.master = TRUE) +
+  tm_shape(tg3o, is.master = TRUE) +
   tm_fill(c("munici_excess_pop_cat", "vote_yes_jun_cat"), 
-            palette = list("-PuOr", "PuOr"), 
-          title = "Excess & voting") + 
+          palette = list("-PuOr", "PuOr"), 
+          title = c("Excess / 1000", "% voting yes")) + 
   tm_shape(kt) +
   tm_borders(col = "grey60")
 ```
-  
+<br/>
+<br/>
 
-### Correlations
+## Correlations {.tabset}
 
-#### Unweighted {.tabset}
+### Unweighted 
 
 ```{r}
 cor.test(exp_deaths_2020_year_gem$munici_excess_pop, 
@@ -339,7 +359,7 @@ cor.test(exp_deaths_2020_year_gem$munici_excess_pop,
          method = "pearson")
 ```
 
-#### Weighted
+### Weighted
 
 ```{r}
 wtd.cor(exp_deaths_2020_year_gem$munici_excess_pop, 
@@ -354,10 +374,11 @@ wtd.cor(exp_deaths_2020_year_gem$munici_excess_pop,
 ```{r echo=FALSE, warning=FALSE}
 exp_deaths_2020_year_gem %>% 
   ggplot(aes(x = munici_excess_pop, y = vote_yes_jun_perc)) + 
-  geom_smooth() +
-  geom_point(alpha = 0.05) + 
+  geom_smooth(alpha = 0.25) +
+  geom_point(aes(color = factor(vote_yes_jun_cat)), alpha = 0.2) + 
+  scale_color_brewer(palette = "PuOr", direction = -1) + 
   theme_ipsum_rc() +
-  xlab("Excess deaths / 1,000") + ylab("% vote yes")
+  xlab("Excess deathsNumber of  / 1,000") + ylab("% vote yes") 
 ```
 
 ### Weighted
@@ -366,10 +387,93 @@ exp_deaths_2020_year_gem %>%
 exp_deaths_2020_year_gem %>% 
   ggplot(aes(x = munici_excess_pop, y = vote_yes_jun_perc)) + 
   geom_smooth(aes(weight = munici_observed)) +
-  geom_point(aes(size = munici_observed), alpha = 0.05) + 
+  geom_point(aes(color = factor(vote_yes_jun_cat), size = munici_observed), alpha = 0.2) + 
+  scale_color_brewer(palette = "PuOr", direction = -1) + 
   theme_ipsum_rc() +
   theme(legend.position = "none") +
   xlab("Excess deaths") + ylab("% vote yes")
 ```
 
+## Box 
 
+```{r echo=FALSE}
+ggplot(exp_deaths_2020_year_gem, aes(x = factor(vote_yes_jun_cat), y = munici_excess_pop)) + 
+  geom_boxplot() + 
+  ylab("Excess deaths / 1000") + xlab("% vote yes") + 
+  theme_light()
+```
+
+<!-- ----------------------------------------------------- -->
+
+# EDA Nov vote 
+
+## Map 
+
+```{r echo=FALSE}
+tmap_mode("view")
+
+tm_shape(se_alt, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(tg3o, is.master = TRUE) +
+  tm_fill(c("munici_excess_pop_cat", "vote_yes_nov_cat"), 
+          palette = list("-PuOr", "PuOr"), 
+          title = c("Excess / 1000", "% voting yes")) + 
+  tm_shape(kt) +
+  tm_borders(col = "grey60")
+```
+<br/>
+<br/>
+
+## Correlations {.tabset}
+
+### Unweighted 
+
+```{r}
+cor.test(exp_deaths_2020_year_gem$munici_excess_pop, 
+         exp_deaths_2020_year_gem$vote_yes_nov_perc, 
+         method = "pearson")
+```
+
+### Weighted
+
+```{r}
+wtd.cor(exp_deaths_2020_year_gem$munici_excess_pop, 
+        exp_deaths_2020_year_gem$vote_yes_nov_perc, 
+        weight = exp_deaths_2020_year_gem$munici_observed)
+```
+
+## Scatter {.tabset}
+
+### Unweighted
+
+```{r echo=FALSE, warning=FALSE}
+exp_deaths_2020_year_gem %>% 
+  ggplot(aes(x = munici_excess_pop, y = vote_yes_nov_perc)) + 
+  geom_smooth(alpha = 0.25) +
+  geom_point(aes(color = factor(vote_yes_nov_cat)), alpha = 0.2) + 
+  scale_color_brewer(palette = "PuOr", direction = -1) + 
+  theme_ipsum_rc() +
+  xlab("Excess deaths / 1,000") + ylab("% vote yes") 
+```
+
+### Weighted
+
+```{r echo=FALSE, warning=FALSE}
+exp_deaths_2020_year_gem %>% 
+  ggplot(aes(x = munici_excess_pop, y = vote_yes_nov_perc)) + 
+  geom_smooth(aes(weight = munici_observed)) +
+  geom_point(aes(color = factor(vote_yes_nov_cat), size = munici_observed), alpha = 0.2) + 
+  scale_color_brewer(palette = "PuOr", direction = -1) + 
+  theme_ipsum_rc() +
+  theme(legend.position = "none") +
+  xlab("Excess deaths") + ylab("% vote yes")
+```
+
+## Box 
+
+```{r echo=FALSE}
+ggplot(exp_deaths_2020_year_gem, aes(x = factor(vote_yes_nov_cat), y = munici_excess_pop)) + 
+  geom_boxplot() + 
+  ylab("Excess deaths / 1000") + xlab("% vote yes") + 
+  theme_light()
+```
