@@ -17,13 +17,15 @@ data = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds"
   # strata with double zeroes seem to be crashing !!!
   filter(pop_mid_poi > 0) %>% 
   # only data till 2019
-  filter(year < 2020)
+  filter(year < 2020) 
 
 summary(data$year)
 
 # year of interest
 
-yoi = 2015
+yoi = 2019
+
+table(is.na(data$deaths))
 
 data = data %>% 
   mutate(deaths = if_else(year == yoi, NA_integer_, deaths))
@@ -51,7 +53,9 @@ threads = parallel::detectCores()
 formula <- deaths ~ 1 + offset(log(pop_mid_poi)) + 
   year + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
+  f(row_id, model = "iid", hyper = hyper.iid, constr = TRUE) 
+  
 
 gem_bym2_cv <- list()
 
@@ -60,7 +64,10 @@ for(s in c("Female", "Male")){
   data_sex <- data %>% 
     filter(sex == s) %>% 
     select(-sex) %>% 
-    as.data.frame()
+    as.data.frame() %>% 
+    mutate(row_id = as.integer(row_number()))
+ 
+  summary(data_sex$row_id)
   
   model <- inla(formula = formula,
                 data = data_sex,
@@ -93,7 +100,8 @@ formula <- deaths ~ 1 + offset(log(pop_mid_poi)) +
   year + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
   f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2)
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
+  f(row_id, model = "iid", hyper = hyper.iid, constr = TRUE) 
 
 gem_bym2_cv_kt <- list()
 
@@ -102,7 +110,10 @@ for(s in c("Female", "Male")){
   data_sex <- data %>% 
     filter(sex == s) %>% 
     select(-sex) %>% 
-    as.data.frame()
+    as.data.frame() %>% 
+    mutate(row_id = as.integer(row_number()))
+  
+  summary(data_sex$row_id)
   
   model <- inla(formula = formula,
                 data = data_sex,
