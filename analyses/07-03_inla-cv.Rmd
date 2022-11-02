@@ -85,8 +85,8 @@ se_alt = read_rds("data/BfS/se_alt.Rds")
 ## Results from Ubelix
 
 ```{r}
-gem_bym2_cv = read_rds("results/gem_bym2_cv.Rds")
-gem_bym2_cv_kt = read_rds("results/gem_bym2_cv_kt.Rds")
+gem_bym2_cv = read_rds("results_inla/gem_bym2_cv.Rds")
+gem_bym2_cv_kt = read_rds("results_inla/gem_bym2_cv_kt.Rds")
 ```
 
 ## Year of interest 

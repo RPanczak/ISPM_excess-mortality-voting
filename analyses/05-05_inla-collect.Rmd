@@ -74,8 +74,8 @@ tg3o = read_rds("data/BfS/tg3o.Rds")
 se_alt = read_rds("data/BfS/se_alt.Rds")
 
 ## Results from Ubelix
-gem_bym2 = read_rds("results/gem_bym2.Rds")
-gem_bym2_kt = read_rds("results/gem_bym2_kt.Rds")
+gem_bym2 = read_rds("results_inla/gem_bym2.Rds")
+gem_bym2_kt = read_rds("results_inla/gem_bym2_kt.Rds")
 ```
 
 <!-- ----------------------------------------------------- -->
