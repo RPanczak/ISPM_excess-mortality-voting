@@ -141,10 +141,11 @@ final_male_kt = gem_bym2_cv_kt$Male$summary.random$id_kt %>%
          `0.975quant` = exp(`0.975quant`)) %>% 
   left_join(data_male %>% 
               select(ID = id_kt, KTNAME) %>% 
-              distinct())
+              distinct()) %>% 
+  mutate(KTNAME2 = fct_reorder(KTNAME, desc(`0.5quant`)))
 
 final_male_kt %>% 
-  ggplot(aes(y = KTNAME)) + 
+  ggplot(aes(y = KTNAME2)) + 
   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
   geom_vline(aes(xintercept = 1), color = "darkorchid") + 
   theme_minimal() + 
@@ -164,7 +165,7 @@ males_fit = bind_cols(
   gem_bym2_cv$Male$summary.fitted.values
 ) %>% 
   as_tibble() %>% 
-  remove_rownames()
+  remove_rownames() 
 
 ggplot(males_fit) + 
   geom_abline(intercept = 0, slope = 1, color = "darkorchid") +
@@ -274,10 +275,10 @@ mosaicplot(with(males_fit_2000, table(median_ssep3_q, within)),
            main = "Coverage across SEP")
 
 mosaicplot(with(males_fit_2000, table(r_urban1, within)),
-           main = "Coverage across urbanization")
+           main = "Coverage across urbanization 1")
 
-# mosaicplot(with(males_fit_2000, table(r_urban2, within)),
-#            main = "Coverage across urbanization")
+mosaicplot(with(males_fit_2000, table(r_urban2, within)),
+           main = "Coverage across urbanization 2")
 
 mosaicplot(with(males_fit_2000, table(r_lang, within)),
            main = "Coverage across language region")
@@ -289,6 +290,10 @@ males_fit_2000_space =
   select(GMDNR) %>% 
   left_join(males_fit_2000 %>% 
               select(GMDNR, GMDNAME, observed, within))
+```
+
+```{r}
+frq(males_fit_2000_space, within)
 ```
 
 ```{r echo=FALSE}
@@ -326,10 +331,10 @@ mosaicplot(with(males_fit_kt_2000, table(median_ssep3_q, within)),
            main = "Coverage across SEP")
 
 mosaicplot(with(males_fit_kt_2000, table(r_urban1, within)),
-           main = "Coverage across urbanization")
+           main = "Coverage across urbanization 1")
 
-# mosaicplot(with(males_fit_kt_2000, table(r_urban2, within)),
-#            main = "Coverage across urbanization")
+mosaicplot(with(males_fit_kt_2000, table(r_urban2, within)),
+           main = "Coverage across urbanization 2")
 
 mosaicplot(with(males_fit_kt_2000, table(r_lang, within)),
            main = "Coverage across language region")
@@ -341,6 +346,10 @@ males_fit_kt_2000_space =
   select(GMDNR) %>% 
   left_join(males_fit_kt_2000 %>% 
               select(GMDNR, GMDNAME, observed, within))
+```
+
+```{r}
+frq(males_fit_kt_2000_space, within)
 ```
 
 ```{r echo=FALSE}
