@@ -11,7 +11,7 @@ library(INLA)
 
 data = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
   # testing df
-  # filter(id_space <= 2) %>%
+  # filter(id_space <= 5) %>%
   select(-(ARGRNR:ARNAME)) %>%
   filter(age != "<40") %>% 
   # strata with double zeroes seem to be crashing !!!

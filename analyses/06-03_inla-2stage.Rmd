@@ -83,8 +83,8 @@ se_alt = read_rds("data/BfS/se_alt.Rds")
 Model fitted using 2015-2019 data. Males only.  
 
 ```{r}
-gem_bym2_19 = read_rds("results/gem_bym2_19.Rds")
-gem_bym2_19_kt = read_rds("results/gem_bym2_19_kt.Rds")
+gem_bym2_19 = read_rds("results_inla/gem_bym2_19.Rds")
+gem_bym2_19_kt = read_rds("results_inla/gem_bym2_19_kt.Rds")
 ```
 
 ## Canton {.tabset}
@@ -122,8 +122,7 @@ rate_draws = lapply(draws, function(i)
 # length(rate_draws[[1]]) == dim(data_male)[1]
 
 rate_draws_med = array(unlist(rate_draws), dim = c(dim(data_male)[1], 50))
-# dim(rate_draws_med)
-# dim(data_male)
+# dim(rate_draws_med)[1] == dim(data_male)[1]
 
 data_male_draws = cbind(data_male, as.data.frame(rate_draws_med))
 
@@ -190,8 +189,7 @@ Sample created above gets merged with voting dataset
 data_2020 = read_rds("samples/sample_males_1.Rds") 
 
 # merge voting
-covid_jun_gem = read_rds("data/voting/covid_jun_gem.Rds") %>% 
-  st_drop_geometry() %>% 
+covid_jun = read_rds("data/voting/covid_jun.Rds") %>% 
   select(GMDNR, vote_yes, jaStimmenInProzent) %>% 
   distinct()
 ```
@@ -199,14 +197,13 @@ covid_jun_gem = read_rds("data/voting/covid_jun_gem.Rds") %>%
 Quintiles of votes:  
 
 ```{r echo=FALSE}
-frq(covid_jun_gem, vote_yes)
+frq(covid_jun, vote_yes)
 ```
 
 Range of 'yes' votes within quintile:  
 
 ```{r echo=FALSE}
-covid_jun_gem %>% 
-  filter(!is.na(vote_yes)) %>% 
+covid_jun %>% 
   group_by(vote_yes) %>% 
   summarise(min = min(jaStimmenInProzent), max = max(jaStimmenInProzent))
 ```
@@ -224,7 +221,7 @@ data_2020 = data_2020 %>%
 Merge with data and clean communities without vote info and with zero pops  
 
 ```{r}
-data_2020 = left_join(data_2020, covid_jun_gem) %>% 
+data_2020 = left_join(data_2020, covid_jun) %>% 
   # filter few communities without voting info
   filter(!is.na(vote_yes)) %>% 
   # filter strata with zero pops  
@@ -238,7 +235,7 @@ sapply(data_2020, function(x) sum(is.na(x)))
 
 ## Model run
 
-The stage 2 models are run 100 times (50 males, 50 females) using the samples extracted in stage 1.  
+The stage 2 models are run 50 times (for each sex) using the samples extracted in stage 1.  
 
 ```{r}
 hyper.iid = list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
@@ -252,24 +249,26 @@ threads = parallel::detectCores()
 ```{r}
 formula_cru = deaths ~ 1 + offset(log(exp)) + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
   as.factor(vote_yes) 
 
 model_cru = inla(formula = formula_cru,
                  data = data_2020,
                  family = "Poisson",
-                 control.compute = list(config = TRUE,
-                                        dic = TRUE),
+                 control.compute = list(config = TRUE, dic = TRUE),
                  quantiles = c(0.025, 0.5, 0.975),
                  num.threads = threads,
-                 control.predictor = list(compute = TRUE, link = 1))
+                 safe = TRUE,
+                 verbose = TRUE)
 ```
 
 ## Results 
 
 ```{r}
 summary(model_cru)
+```
 
+```{r}
 exp(model_cru$summary.fixed)
 ```
 
@@ -302,7 +301,7 @@ summary(data_2020_male_draws$V1)
 ```{r eval=FALSE, include=FALSE}
 formula_adj = deaths ~ 1 + offset(log(exp)) + 
   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + 
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, constr = TRUE, hyper = hyper.bym2) + 
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) + 
   as.factor(vote_yes) + 
   as.factor(border) +
   as.factor(median_ssep3_q) +
@@ -317,5 +316,6 @@ model_adj = inla(formula = formula_adj,
                                         dic = TRUE),
                  quantiles = c(0.025, 0.5, 0.975),
                  num.threads = threads,
-                 control.predictor = list(compute = TRUE, link = 1))
+                 safe = TRUE,
+                 verbose = TRUE)
 ```
