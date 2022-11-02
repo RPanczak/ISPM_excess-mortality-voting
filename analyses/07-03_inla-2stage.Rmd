@@ -119,10 +119,10 @@ draws = inla.posterior.sample(50, gem_bym2_19$Male)
 rate_draws = lapply(draws, function(i)
   exp(i$latent[grep("Predictor", rownames(i$latent))]))
 
-# length(rate_draws[[1]]) == dim(data_male)[1]
+stopifnot(length(rate_draws[[1]]) == dim(data_male)[1])
 
 rate_draws_med = array(unlist(rate_draws), dim = c(dim(data_male)[1], 50))
-# dim(rate_draws_med)[1] == dim(data_male)[1]
+stopifnot(dim(rate_draws_med)[1] == dim(data_male)[1])
 
 data_male_draws = cbind(data_male, as.data.frame(rate_draws_med))
 
@@ -172,8 +172,15 @@ data_2020 = left_join(
 ```{r}
 for (i in 1:50){
   sample_males = data_2020[, c(1:17, (i+17))]
+  
+  if (i < 10) {
+    suffix = paste0("0", i)
+  } else {
+    suffix = paste0(i)
+  } 
+  
   write_rds(sample_males, 
-            file = paste("samples/sample_males_", i, ".Rds", sep = ""))
+            file = paste("samples/sample_males_", suffix, ".Rds", sep = ""))
 }
 ```
 
@@ -186,9 +193,25 @@ for (i in 1:50){
 Sample created above gets merged with voting dataset  
 
 ```{r}
-data_2020 = read_rds("samples/sample_males_1.Rds") 
+data_2020 = read_rds("samples/sample_males_01.Rds") 
+```
 
-# merge voting
+Communities without `exp`
+
+```{r}
+data_2020 %>% 
+  filter(is.na(.[[18]])) %>% 
+  select(GMDNAME, sex, age, deaths, pop_mid_poi)
+```
+
+```{r}
+data_2020 = data_2020 %>% 
+  filter(!is.na(.[[18]]))
+```
+
+Voting data 
+
+```{r}
 covid_jun = read_rds("data/voting/covid_jun.Rds") %>% 
   select(GMDNR, vote_yes, jaStimmenInProzent) %>% 
   distinct()
@@ -210,7 +233,7 @@ covid_jun %>%
 
 ## Set the expected column 
 
-using the index we want to run
+Using the index we want to run
 
 ```{r}
 data_2020 = data_2020 %>% 
@@ -218,14 +241,27 @@ data_2020 = data_2020 %>%
   select(-18)
 ```
 
+Missing check  
+
+```{r}
+sapply(data_2020, function(x) sum(is.na(x)))
+```
+
+Zeros have to handled 
+
+```{r}
+frq(data_2020, exp == 0)
+
+data_2020 = data_2020 %>% 
+  mutate(exp = ifelse(exp == 0, 0.0000001, exp))
+```
+
 Merge with data and clean communities without vote info and with zero pops  
 
 ```{r}
 data_2020 = left_join(data_2020, covid_jun) %>% 
   # filter few communities without voting info
-  filter(!is.na(vote_yes)) %>% 
-  # filter strata with zero pops  
-  filter(!is.na(exp)) 
+  filter(!is.na(vote_yes))
 ```
 
 ```{r eval=FALSE, include=FALSE}
@@ -259,7 +295,7 @@ model_cru = inla(formula = formula_cru,
                  quantiles = c(0.025, 0.5, 0.975),
                  num.threads = threads,
                  safe = TRUE,
-                 verbose = TRUE)
+                 verbose = FALSE)
 ```
 
 ## Results 
@@ -290,9 +326,9 @@ data_2020_male_draws = cbind(data_2020, as.data.frame(rate_draws_2_med))
 #Once the batch is complete there will be 5000 samples (50 from stage 1 * 100 from stage 2) which are used to extract the various measure of excess mortality used in the paper. Plus the rate ratios for the covariates.
 ```
 
-WTF?
-
 ```{r}
+sapply(data_2020_male_draws, function(x) sum(is.na(x)))
+
 summary(data_2020_male_draws$V1)
 ```
 
@@ -311,11 +347,15 @@ formula_adj = deaths ~ 1 + offset(log(exp)) +
 model_adj = inla(formula = formula_adj,
                  data = data_2020,
                  family = "Poisson",
-                 control.family = control.family,
-                 control.compute = list(config = TRUE,
-                                        dic = TRUE),
+                 control.compute = list(config = TRUE, dic = TRUE),
                  quantiles = c(0.025, 0.5, 0.975),
                  num.threads = threads,
                  safe = TRUE,
-                 verbose = TRUE)
+                 verbose = FALSE)
+
+summary(model_adj)
+exp(model_adj$summary.fixed)
+
+draws_3 = inla.posterior.sample(100, model_adj)
+
 ```
