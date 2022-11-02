@@ -128,12 +128,12 @@ tm_shape(se_alt, is.master = FALSE) +
   tm_symbols(
     size = "munici_expected_med",
     # size = "munici_observed",
-    # size = "population",
+    # size = "munici_pop",
     col = "munici_excess_rat_cat",
     shape = 15, scale = 2, perceptual = TRUE, 
     legend.size.show = TRUE, 
     palette = "-PuOr", 
-    title.size = "Population", 
+    title.size = "munici_pop", 
     title.col = "Excess / expected") + 
   tm_legend(position = c("LEFT", "TOP"))
 ```

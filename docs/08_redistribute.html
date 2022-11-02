@@ -2033,7 +2033,12 @@ deaths to municipality level.</p>
 </div>
 <div id="downscale" class="section level1">
 <h1>Downscale</h1>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year <span class="ot">=</span> <span class="fu">downscale_year</span>(exp_deaths_2020_kt, w_deaths_2020_year_fin)</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year <span class="ot">=</span> <span class="fu">downscale_year</span>(exp_deaths_2020_kt, w_deaths_2020_year_fin) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_pop =</span> pop_mid_poi,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_observed =</span> observed,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">cant_exp_deaths =</span> exp_deaths,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">cant_observed =</span> observed2) </span></code></pre></div>
 <p>Again, result contains iterations of diff results</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(exp_deaths_2020_year<span class="sc">$</span>it)</span></code></pre></div>
 <pre><code>[1] 1000</code></pre>
@@ -2181,7 +2186,7 @@ deaths to municipality level.</p>
 <td align="left">▇▃▅▅▇</td>
 </tr>
 <tr class="even">
-<td align="left">observed</td>
+<td align="left">munici_observed</td>
 <td align="right">0</td>
 <td align="right">1.00</td>
 <td align="right">3.55</td>
@@ -2194,7 +2199,7 @@ deaths to municipality level.</p>
 <td align="left">▇▁▁▁▁</td>
 </tr>
 <tr class="odd">
-<td align="left">pop_mid_poi</td>
+<td align="left">munici_pop</td>
 <td align="right">0</td>
 <td align="right">1.00</td>
 <td align="right">403.70</td>
@@ -2220,7 +2225,7 @@ deaths to municipality level.</p>
 <td align="left">▁▁▇▁▁</td>
 </tr>
 <tr class="odd">
-<td align="left">exp_deaths</td>
+<td align="left">cant_exp_deaths</td>
 <td align="right">0</td>
 <td align="right">1.00</td>
 <td align="right">404.91</td>
@@ -2233,7 +2238,7 @@ deaths to municipality level.</p>
 <td align="left">▇▁▁▁▁</td>
 </tr>
 <tr class="even">
-<td align="left">observed2</td>
+<td align="left">cant_observed</td>
 <td align="right">0</td>
 <td align="right">1.00</td>
 <td align="right">467.83</td>
@@ -2294,32 +2299,29 @@ deaths to municipality level.</p>
 <h2>Aggregates</h2>
 <p>Iterations collapsed for each municipality strata.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year_agg <span class="ot">=</span> exp_deaths_2020_year <span class="sc">%&gt;%</span> </span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">munici_observed =</span> observed,</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">cant_exp_deaths =</span> exp_deaths,</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">cant_observed =</span> observed2) <span class="sc">%&gt;%</span> </span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(canton, GMDNR, age_group, sex) <span class="sc">%&gt;%</span> </span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># observed</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_observed =</span> <span class="fu">first</span>(munici_observed),</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">population =</span> <span class="fu">first</span>(pop_mid_poi),</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># modelled x1000</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># expected</span></span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_expected_lo =</span> <span class="fu">quantile</span>(munici_exp_deaths, <span class="fl">0.025</span>),</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_expected_med =</span> <span class="fu">quantile</span>(munici_exp_deaths, <span class="fl">0.5</span>),</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_expected_up =</span> <span class="fu">quantile</span>(munici_exp_deaths, <span class="fl">0.975</span>),</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># excess</span></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_excess_lo =</span> <span class="fu">quantile</span>(munici_excess, <span class="fl">0.025</span>),</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_excess_med =</span> <span class="fu">quantile</span>(munici_excess, <span class="fl">0.5</span>),</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_excess_up =</span> <span class="fu">quantile</span>(munici_excess, <span class="fl">0.975</span>)</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code></pre></div>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(canton, GMDNR, age_group, sex) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># observed</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_observed =</span> <span class="fu">first</span>(munici_observed),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_pop =</span> <span class="fu">first</span>(munici_pop),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># modelled x1000</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># expected</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_expected_lo =</span> <span class="fu">quantile</span>(munici_exp_deaths, <span class="fl">0.025</span>),</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_expected_med =</span> <span class="fu">quantile</span>(munici_exp_deaths, <span class="fl">0.5</span>),</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_expected_up =</span> <span class="fu">quantile</span>(munici_exp_deaths, <span class="fl">0.975</span>),</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># excess</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_excess_lo =</span> <span class="fu">quantile</span>(munici_excess, <span class="fl">0.025</span>),</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_excess_med =</span> <span class="fu">quantile</span>(munici_excess, <span class="fl">0.5</span>),</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_excess_up =</span> <span class="fu">quantile</span>(munici_excess, <span class="fl">0.975</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code></pre></div>
 <p>Even simpler aggregation to municipality level, ignoring age &amp;
 sex strata.</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year_gem <span class="ot">=</span> exp_deaths_2020_year_agg <span class="sc">%&gt;%</span> </span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(canton, GMDNR) <span class="sc">%&gt;%</span> </span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># community level totals</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">population =</span> <span class="fu">sum</span>(population),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_pop =</span> <span class="fu">sum</span>(munici_pop),</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_observed =</span> <span class="fu">sum</span>(munici_observed),</span>
 <span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_expected_med =</span> <span class="fu">sum</span>(munici_expected_med),</span>
 <span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">munici_excess_med =</span> <span class="fu">sum</span>(munici_excess_med)</span>
@@ -2327,7 +2329,7 @@ sex strata.</p>
 <span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># ratio and per pop</span></span>
 <span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">munici_excess_rat =</span> munici_excess_med <span class="sc">/</span> munici_expected_med,</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>         <span class="at">munici_excess_pop =</span>  (munici_excess_med <span class="sc">/</span> population) <span class="sc">*</span> <span class="dv">1000</span>) </span></code></pre></div>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>         <span class="at">munici_excess_pop =</span>  (munici_excess_med <span class="sc">/</span> munici_pop) <span class="sc">*</span> <span class="dv">1000</span>) </span></code></pre></div>
 <p>Special situation arises in this aggregation when calculating a
 <em>ratio of excess deaths to observed</em> deaths. There are
 communities where expected number of deaths is zero. That leads to ratio
@@ -2345,17 +2347,23 @@ TRUE  |  103 |  4.80 |    4.80 | 100.00
 </div>
 <div id="bring-covariates" class="section level2">
 <h2>Bring covariates</h2>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year_agg <span class="sc">%&lt;&gt;%</span> </span>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year <span class="sc">%&lt;&gt;%</span> </span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="fu">read_rds</span>(<span class="st">&quot;data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds&quot;</span>) <span class="sc">%&gt;%</span> </span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>              <span class="fu">select</span>(GMDNR, GMDNAME, border, </span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>                     median_ssep3_q, r_urban1, r_urban2, r_lang) <span class="sc">%&gt;%</span> </span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>              <span class="fu">distinct</span>())</span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year_gem <span class="sc">%&lt;&gt;%</span> </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year_agg <span class="sc">%&lt;&gt;%</span> </span>
 <span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="fu">read_rds</span>(<span class="st">&quot;data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds&quot;</span>) <span class="sc">%&gt;%</span> </span>
 <span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>              <span class="fu">select</span>(GMDNR, GMDNAME, border, </span>
 <span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>                     median_ssep3_q, r_urban1, r_urban2, r_lang) <span class="sc">%&gt;%</span> </span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>              <span class="fu">distinct</span>())</span></code></pre></div>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>              <span class="fu">distinct</span>())</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>exp_deaths_2020_year_gem <span class="sc">%&lt;&gt;%</span> </span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="fu">read_rds</span>(<span class="st">&quot;data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>              <span class="fu">select</span>(GMDNR, GMDNAME, border, </span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>                     median_ssep3_q, r_urban1, r_urban2, r_lang) <span class="sc">%&gt;%</span> </span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>              <span class="fu">distinct</span>())</span></code></pre></div>
 </div>
 <div id="bring-voting" class="section level2">
 <h2>Bring voting</h2>

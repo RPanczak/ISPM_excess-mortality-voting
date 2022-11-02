@@ -111,7 +111,7 @@ tm_shape(se_alt, is.master = FALSE) +
 
 ### Proportional symbols 
 
-Symbol size perceptually scaled to population size. 
+Symbol size perceptually scaled to munici_pop size. 
 
 ```{r echo=FALSE}
 tm_shape(se_alt, is.master = FALSE) +
@@ -122,12 +122,12 @@ tm_shape(se_alt, is.master = FALSE) +
   tm_symbols(
     # size = "munici_excess_med",
     # size = "munici_observed",
-    size = "population",
+    size = "munici_pop",
     col = "munici_excess_pop_cat",
     shape = 15, scale = 2, perceptual = TRUE, 
     legend.size.show = TRUE, 
     palette = "-PuOr", 
-    title.size = "Population", 
+    title.size = "munici_pop", 
     title.col = "Excess / 1000") + 
   tm_legend(position = c("LEFT", "TOP"))
 ```

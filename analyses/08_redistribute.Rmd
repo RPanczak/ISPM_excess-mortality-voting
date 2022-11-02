@@ -119,7 +119,12 @@ source("R/downscale_year.R")
 # Downscale 
 
 ```{r}
-exp_deaths_2020_year = downscale_year(exp_deaths_2020_kt, w_deaths_2020_year_fin)
+exp_deaths_2020_year = downscale_year(exp_deaths_2020_kt, w_deaths_2020_year_fin) %>% 
+  rename(
+    munici_pop = pop_mid_poi,
+    munici_observed = observed,
+    cant_exp_deaths = exp_deaths,
+    cant_observed = observed2) 
 ```
 
 Again, result contains iterations of diff results  
@@ -150,14 +155,11 @@ Iterations collapsed for each municipality strata.
 
 ```{r}
 exp_deaths_2020_year_agg = exp_deaths_2020_year %>% 
-  rename(munici_observed = observed,
-         cant_exp_deaths = exp_deaths,
-         cant_observed = observed2) %>% 
   group_by(canton, GMDNR, age_group, sex) %>% 
   summarise(
     # observed
     munici_observed = first(munici_observed),
-    population = first(pop_mid_poi),
+    munici_pop = first(munici_pop),
     # modelled x1000
     # expected
     munici_expected_lo = quantile(munici_exp_deaths, 0.025),
@@ -178,7 +180,7 @@ exp_deaths_2020_year_gem = exp_deaths_2020_year_agg %>%
   group_by(canton, GMDNR) %>% 
   summarise(
     # community level totals
-    population = sum(population),
+    munici_pop = sum(munici_pop),
     munici_observed = sum(munici_observed),
     munici_expected_med = sum(munici_expected_med),
     munici_excess_med = sum(munici_excess_med)
@@ -186,7 +188,7 @@ exp_deaths_2020_year_gem = exp_deaths_2020_year_agg %>%
   ungroup() %>% 
   # ratio and per pop
   mutate(munici_excess_rat = munici_excess_med / munici_expected_med,
-         munici_excess_pop =  (munici_excess_med / population) * 1000) 
+         munici_excess_pop =  (munici_excess_med / munici_pop) * 1000) 
 ```
 
 Special situation arises in this aggregation when calculating a *ratio of excess deaths to observed* deaths. There are communities where expected number of deaths is zero. That leads to ratio being `Inf` in cases where excess is > 0 and to `NaN` where excess is (also) == 0.  
