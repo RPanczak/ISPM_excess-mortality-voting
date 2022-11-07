@@ -27,7 +27,6 @@ p_load(tidyverse, magrittr, skimr, scales,
        sf, tmap)
 
 import::from("sjmisc", "frq")
-import::from("weights", "wtd.cor")
 ```
 
 ```{r conflicts, include = FALSE}
@@ -270,11 +269,18 @@ exp_deaths_2020_year_gem %<>%
   relocate(GMDNAME, .after = GMDNR)
 
 exp_deaths_2020_year %<>% 
+  left_join(covid_jun) %>% 
+  # filter(!is.na(vote_yes_jun_cat)) %>%
   left_join(covid_nov) %>% 
   # filter(!is.na(vote_yes_nov_cat)) %>% 
-  left_join(covid_jun) %>% 
-  # filter(!is.na(vote_yes_jun_cat)) %>% 
-  relocate(GMDNAME, .after = GMDNR)
+  relocate(GMDNAME, .after = GMDNR) %>% 
+  # adding INLA id vars
+  left_join(gg %>% 
+              st_drop_geometry() %>% 
+              select(GMDNR, id_space)) %>% 
+  relocate(id_space, .before = GMDNR) %>% 
+  mutate(id_age = as.integer(as.factor(age_group))) %>% 
+  relocate(id_space, .after = age_group)
 
 write_rds(exp_deaths_2020_year, "results/exp_deaths_2020_year.Rds")
 write_rds(exp_deaths_2020_year_agg, "results/exp_deaths_2020_year_agg.Rds")
