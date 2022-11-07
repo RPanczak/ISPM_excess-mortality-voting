@@ -2,4 +2,4 @@
 
 Data preparations and miscellaneous explorations and analyses.  
 
-![SIR](https://github.com/RPanczak/ISPM_excess-mortality-voting/docs/sir.png)
+![SIR](https://github.com/RPanczak/ISPM_excess-mortality-voting/blob/main/docs/sir.png)
