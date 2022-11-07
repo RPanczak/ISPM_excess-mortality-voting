@@ -196,14 +196,29 @@ model_cru = inla(formula = formula_cru,
                  verbose = FALSE)
 ```
 
-## Results 
-
 ```{r}
 summary(model_cru)
 ```
 
 ```{r}
 exp(model_cru$summary.fixed)
+```
+
+```{r echo=FALSE}
+fixed = model_cru$summary.fixed %>% 
+  mutate(var = row.names(.)) %>%
+  filter(var != "(Intercept)") %>% 
+  mutate(`0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) 
+
+fixed %>% 
+  ggplot(aes(y = var)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
+  theme_minimal() + 
+  scale_x_log10() +
+  ylab("") 
 ```
 
 ## Model run 2
@@ -231,12 +246,23 @@ model_adj = inla(formula = formula_adj,
                  verbose = FALSE)
 ```
 
-## Results 
-
 ```{r}
 summary(model_adj)
 ```
 
-```{r}
-exp(model_adj$summary.fixed)
+```{r echo=FALSE}
+fixed = model_adj$summary.fixed %>% 
+  mutate(var = row.names(.)) %>%
+  filter(var != "(Intercept)") %>% 
+  mutate(`0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) 
+
+fixed %>% 
+  ggplot(aes(y = var)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
+  theme_minimal() + 
+  scale_x_log10() +
+  ylab("") 
 ```
