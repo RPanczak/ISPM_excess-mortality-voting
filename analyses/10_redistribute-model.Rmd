@@ -116,7 +116,7 @@ Using only one iteration for now
 
 ```{r}
 data = exp_deaths_2020_year %>% 
-  filter(it == 2) 
+  filter(it == 3) 
 ```
 
 ```{r}
@@ -134,10 +134,15 @@ data %>%
                  size = munici_pop), 
              alpha = 0.5) + 
   scale_color_viridis(option = "turbo", direction = 1, discrete = TRUE) + 
+  scale_x_sqrt() + scale_y_sqrt() +
   coord_fixed() +
   theme_light() +
   facet_grid(vars(sex), vars(age_group)) +
   xlab("Observed") + ylab("Expected")
+```
+
+```{r include=FALSE}
+ggsave("docs/oe_scat.png", units = "px", width = 2*1920, height = 2*1080)
 ```
 
 ```{r}
