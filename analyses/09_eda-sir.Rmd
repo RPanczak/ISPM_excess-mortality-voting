@@ -60,6 +60,7 @@ kt = read_rds("data/BfS/kt.Rds")
 gg = read_rds("data/BfS/gg.Rds")
 tg3o = read_rds("data/BfS/tg3o.Rds")
 se_alt = read_rds("data/BfS/se_alt.Rds")
+carto = read_rds("data/carto/carto.Rds")
 ```
 
 ## Downscaled data
@@ -159,6 +160,38 @@ tm_shape(se_alt, is.master = FALSE) +
     title.size = "munici_pop", 
     title.col = "SIR") + 
   tm_legend(position = c("LEFT", "TOP"))
+```
+
+### Cartogram 
+
+```{r include=FALSE}
+carto_gg <- st_read("data/carto/out_gg.shp") %>% 
+  st_set_crs(value = 2056) %>% 
+  select(GMDNR) %>% 
+  right_join(exp_deaths_2020_year_gem) %>% 
+  mutate(munici_sir_cat = Hmisc::cut2(munici_sir, g = 5))
+
+carto_se <- st_read("data/carto/out_se.shp") %>% 
+  st_set_crs(value = 2056)
+
+carto_kt <- st_read("data/carto/out_kt.shp") %>% 
+  st_set_crs(value = 2056)
+
+# frq(carto$munici_sir_cat)
+```
+
+```{r echo=FALSE}
+tm_shape(carto_se, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2") + 
+  tm_shape(carto_gg, is.master = TRUE) +
+  tm_fill("munici_sir_cat", palette = "YlOrBr", 
+          title = "SIR") + 
+  tm_shape(carto_kt) +
+  tm_borders(col = "grey60")
+```
+
+```{r}
+tmap_save(tmap_last(), "docs/sir.png", width = 1920, height = 1080, asp = 0)
 ```
 
 <!-- ----------------------------------------------------- -->
