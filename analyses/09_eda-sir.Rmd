@@ -181,17 +181,19 @@ carto_kt <- st_read("data/carto/out_kt.shp") %>%
 ```
 
 ```{r echo=FALSE}
-tm_shape(carto_se, is.master = FALSE) +
+carto = tm_shape(carto_se, is.master = FALSE) +
   tm_fill(col = "#a7cdf2") + 
   tm_shape(carto_gg, is.master = TRUE) +
   tm_fill("munici_sir_cat", palette = "YlOrBr", 
           title = "SIR") + 
   tm_shape(carto_kt) +
   tm_borders(col = "grey60")
+
+carto
 ```
 
 ```{r}
-tmap_save(tmap_last(), "docs/sir.png", width = 1920, height = 1080, asp = 0)
+tmap_save(carto, "docs/sir.png", width = 1920, height = 1080, asp = 0)
 ```
 
 <!-- ----------------------------------------------------- -->
