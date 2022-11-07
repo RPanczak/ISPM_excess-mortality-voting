@@ -74,6 +74,13 @@ exp_deaths_2020_kt %>%
   skim()
 ```
 
+```{r eval=FALSE, include=FALSE}
+exp_deaths_2020_kt %>% 
+  filter(it == 1) %>% 
+  filter(age_group != "<40") %>% 
+  frq(exp_deaths > observed2)
+```
+
 ## Municipality 
 
 Data prepared in `02.Rmd`. Collapsing age groups and renaming variables to match cantonal estimates.  
@@ -99,10 +106,7 @@ w_deaths_2020_year_fin %>%
 ## Spatial 
 
 ```{r}
-kt = read_rds("data/BfS/kt.Rds")
 gg = read_rds("data/BfS/gg.Rds")
-tg3o = read_rds("data/BfS/tg3o.Rds")
-se_alt = read_rds("data/BfS/se_alt.Rds")
 ```
 
 ## Downscale function 
@@ -208,23 +212,19 @@ exp_deaths_2020_year_gem %<>%
 ## Bring covariates 
 
 ```{r}
-exp_deaths_2020_year %<>% 
-  left_join(read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
+covariates = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
               select(GMDNR, GMDNAME, border, 
                      median_ssep3_q, r_urban1, r_urban2, r_lang) %>% 
-              distinct())
+              distinct()
+
+exp_deaths_2020_year %<>% 
+  left_join(covariates)
 
 exp_deaths_2020_year_agg %<>% 
-  left_join(read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
-              select(GMDNR, GMDNAME, border, 
-                     median_ssep3_q, r_urban1, r_urban2, r_lang) %>% 
-              distinct())
+  left_join(covariates)
 
 exp_deaths_2020_year_gem %<>% 
-  left_join(read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
-              select(GMDNR, GMDNAME, border, 
-                     median_ssep3_q, r_urban1, r_urban2, r_lang) %>% 
-              distinct())
+  left_join(covariates)
 ```
 
 ## Bring voting  
