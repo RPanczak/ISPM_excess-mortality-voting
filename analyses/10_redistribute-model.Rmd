@@ -1,0 +1,237 @@
+---
+title: "2020 excess mortality & voting patterns in CH"
+subtitle: "Modelling redistributed community deaths"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(tidyverse, magrittr, skimr, scales,
+       sf, tmap,
+       viridis,
+       INLA)
+
+import::from("sjmisc", "frq")
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Data 
+
+## Spatial 
+
+```{r}
+kt = read_rds("data/BfS/kt.Rds")
+gg = read_rds("data/BfS/gg.Rds")
+tg3o = read_rds("data/BfS/tg3o.Rds")
+se_alt = read_rds("data/BfS/se_alt.Rds")
+```
+
+## Downscaled data
+
+Prepared in `08.Rmd`.  
+
+```{r}
+exp_deaths_2020_year = read_rds("results/exp_deaths_2020_year.Rds") %>% 
+  select(-cant_exp_deaths, -cant_observed, -p)  %>% 
+  mutate(id_kt = as.integer(as.factor(canton)))
+```
+
+Removing communities without voting data.  
+
+```{r echo=FALSE}
+# frq(exp_deaths_2020_year, is.na(vote_yes_jun_cat))
+
+frq(exp_deaths_2020_year %>% filter(is.na(vote_yes_jun_cat)), GMDNAME)
+```
+
+```{r}
+exp_deaths_2020_year = exp_deaths_2020_year %>% 
+  filter(!is.na(vote_yes_nov_cat)) %>% 
+  filter(!is.na(vote_yes_jun_cat)) 
+```
+
+Removing `<40` age group.  
+
+```{r}
+exp_deaths_2020_year = exp_deaths_2020_year %>% 
+  filter(age_group != "<40") 
+```
+
+```{r eval=FALSE, include=FALSE}
+names(exp_deaths_2020_year)
+
+sapply(exp_deaths_2020_year, function(x) sum(is.na(x)))
+
+exp_deaths_2020_year %>% 
+  filter(it <= 10) %>%
+  ggplot(aes(x = munici_observed, color = it)) + 
+  geom_density()
+
+summary(exp_deaths_2020_year$munici_observed)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Modelling
+
+## Observed & expected 
+
+Using only one iteration for now  
+
+```{r}
+data = exp_deaths_2020_year %>% 
+  filter(it == 2) 
+```
+
+```{r}
+summary(data$munici_observed)
+summary(data$munici_exp_deaths)
+frq(data, vote_yes_jun_cat)
+```
+
+```{r}
+data %>% 
+  ggplot(aes(x = munici_observed, y = munici_exp_deaths)) + 
+  # geom_smooth(aes(weight = munici_exp_deaths)) +
+  geom_abline(intercept = 0, slope = 1, color = "grey40") +
+  geom_point(aes(color = factor(vote_yes_jun_cat), 
+                 size = munici_pop), 
+             alpha = 0.5) + 
+  scale_color_viridis(option = "turbo", direction = 1, discrete = TRUE) + 
+  coord_fixed() +
+  theme_light() +
+  facet_grid(vars(sex), vars(age_group)) +
+  xlab("Observed") + ylab("Expected")
+```
+
+```{r}
+frq(data, munici_observed == munici_exp_deaths)
+frq(data, munici_observed > munici_exp_deaths)
+frq(data, munici_observed < munici_exp_deaths)
+```
+
+Zeros have to handled?  
+
+```{r}
+frq(data, munici_observed == 0)
+frq(data, munici_exp_deaths == 0)
+
+frq(data, munici_observed == 0 & munici_exp_deaths == 0)
+frq(data, munici_observed > 0 & munici_exp_deaths == 0)
+
+# data = data %>% 
+#   mutate(munici_exp_deaths = ifelse(munici_exp_deaths == 0, 0.0000001, munici_exp_deaths))
+```
+
+## INLA setup
+
+```{r}
+hyper.iid = list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
+
+hyper.bym2 = list(theta1 = list("PCprior", c(1, 0.01)), 
+                  theta2 = list("PCprior", c(0.5, 0.5)))
+
+threads = parallel::detectCores()
+```
+
+## Model run 1
+
+```{r}
+formula_cru = munici_observed ~ sex +
+  # as.factor(age_group) + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
+  as.factor(vote_yes_jun_cat) 
+
+model_cru = inla(formula = formula_cru,
+                 data = data,
+                 family = "Poisson",
+                 E = munici_exp_deaths, 
+                 control.compute = list(config = TRUE, dic = TRUE),
+                 quantiles = c(0.025, 0.5, 0.975),
+                 num.threads = threads,
+                 safe = TRUE,
+                 verbose = FALSE)
+```
+
+## Results 
+
+```{r}
+summary(model_cru)
+```
+
+```{r}
+exp(model_cru$summary.fixed)
+```
+
+## Model run 2
+
+```{r}
+formula_adj = munici_observed ~ sex +
+  # as.factor(age_group) + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
+  as.factor(vote_yes_jun_cat) + 
+  as.factor(border) + as.factor(median_ssep3_q) + 
+  as.factor(r_urban1) +
+  # as.factor(r_urban2) +
+  as.factor(r_lang)
+
+model_adj = inla(formula = formula_adj,
+                 data = data,
+                 family = "Poisson",
+                 E = munici_exp_deaths, 
+                 control.compute = list(config = TRUE, dic = TRUE),
+                 quantiles = c(0.025, 0.5, 0.975),
+                 num.threads = threads,
+                 safe = TRUE,
+                 verbose = FALSE)
+```
+
+## Results 
+
+```{r}
+summary(model_adj)
+```
+
+```{r}
+exp(model_adj$summary.fixed)
+```
