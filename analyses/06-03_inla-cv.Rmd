@@ -92,7 +92,7 @@ gem_bym2_cv_kt = read_rds("results_inla/gem_bym2_cv_kt.Rds")
 ## Year of interest 
 
 ```{r}
-yoi = 2015
+yoi = 2019
 ```
 
 <!-- ----------------------------------------------------- -->
@@ -293,7 +293,7 @@ males_fit_2000_space =
 ```
 
 ```{r}
-frq(males_fit_2000_space, within)
+frq(males_fit_2000_space$within)
 ```
 
 ```{r echo=FALSE}
@@ -349,7 +349,7 @@ males_fit_kt_2000_space =
 ```
 
 ```{r}
-frq(males_fit_kt_2000_space, within)
+frq(males_fit_kt_2000_space$within)
 ```
 
 ```{r echo=FALSE}
