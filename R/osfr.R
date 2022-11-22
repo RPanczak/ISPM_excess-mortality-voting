@@ -16,14 +16,13 @@ project
 project %>% 
   osf_ls_nodes() 
 
-# folders inside Data component
-# files 
+# files inside Results component
 project %>%
   osf_ls_nodes() %>%
   filter(name == "Results") %>%
   osf_ls_files() 
 
-# downloading data 
+# downloading data - specific file
 project %>%
   osf_ls_nodes() %>%
   filter(name == "Results") %>%
@@ -31,6 +30,14 @@ project %>%
   filter(name == "exp_deaths_2020_year.Rds") %>%
   osf_download(path = "results",
                conflicts = "error")
+
+# # sync whole directory (mind the overwrite option!)
+# project %>%
+#   osf_ls_nodes() %>%
+#   filter(name == "Results") %>%
+#   osf_ls_files(n_max = Inf) %>% 
+#   osf_download(path = "results",
+#                conflicts = "overwrite")
 
 # more info on osfr
 # https://cran.r-project.org/web/packages/osfr/vignettes/getting_started.html
