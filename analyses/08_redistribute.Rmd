@@ -24,7 +24,8 @@ options(max.print = "75")
 library(pacman)
 p_load(tidyverse, magrittr, skimr, scales,
        hrbrthemes, 
-       sf, tmap)
+       sf, tmap,
+       osfr)
 
 import::from("sjmisc", "frq")
 ```
@@ -285,4 +286,22 @@ exp_deaths_2020_year %<>%
 write_rds(exp_deaths_2020_year, "results/exp_deaths_2020_year.Rds")
 write_rds(exp_deaths_2020_year_agg, "results/exp_deaths_2020_year_agg.Rds")
 write_rds(exp_deaths_2020_year_gem, "results/exp_deaths_2020_year_gem.Rds")
+```
+
+```{r include=FALSE}
+osf_auth(readr::read_file("secrets/osf_pat.txt"))
+
+project = osf_retrieve_node("gcxt7")
+project
+
+project %>%
+  osf_ls_nodes() 
+
+upload_location = project %>%
+  osf_ls_nodes("Results") 
+
+osf_upload(upload_location, 
+           path = "results/exp_deaths_2020_year.Rds", 
+           recurse = TRUE, conflicts = "overwrite",
+           verbose = TRUE)
 ```
