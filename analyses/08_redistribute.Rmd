@@ -203,7 +203,7 @@ Special situation arises in this aggregation when calculating a *ratio of excess
 frq(exp_deaths_2020_year_gem, munici_expected_med == 0)
 ```
 
-These communities' ratios were recoded to `NA`.  
+These communities" ratios were recoded to `NA`.  
 
 ```{r include=FALSE}
 exp_deaths_2020_year_gem %<>% 
@@ -215,7 +215,8 @@ exp_deaths_2020_year_gem %<>%
 ```{r}
 covariates = read_rds("data/BfS-closed/monthly_deaths/w_deaths_2015_2020_year_fin.Rds") %>% 
               select(GMDNR, GMDNAME, border, 
-                     median_ssep3_q, r_urban1, r_urban2, r_lang) %>% 
+                     median_ssep3_q, r_urban1, r_urban2, r_lang,
+                     gemtyp_9, gemtyp_9_lab, gemtyp_25, gemtyp_25_lab) %>% 
               distinct()
 
 exp_deaths_2020_year %<>% 
@@ -300,8 +301,14 @@ project %>%
 upload_location = project %>%
   osf_ls_nodes("Results") 
 
+zip(zipfile = "results/exp_deaths_2020_year.zip", 
+    files = "results/exp_deaths_2020_year.Rds")
+
 osf_upload(upload_location, 
-           path = "results/exp_deaths_2020_year.Rds", 
-           recurse = TRUE, conflicts = "overwrite",
+           path = "results/exp_deaths_2020_year.zip", 
+           recurse = TRUE, 
+           conflicts = "overwrite",
            verbose = TRUE)
+
+unlink("results/exp_deaths_2020_year.zip")
 ```

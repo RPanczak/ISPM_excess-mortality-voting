@@ -22,6 +22,8 @@ set.seed(12345)
 options(scipen = 999)
 options(max.print = "75")
 
+# devtools::install_github("politanch/swissdd")
+
 library(pacman)
 p_load(haven, readxl,
        tidyverse, magrittr, janitor, scales, lubridate, 
@@ -976,7 +978,12 @@ raum <- read_xlsx("data-raw/BfS/Raumgliederungen.xlsx",
          BZNAME = bezirksname) %>% 
   select(GMDNR, GMDNAME, KTNAME, BZNR, BZNAME, 
          stadtische_landliche_gebiete, sprachgebiete,
-         urbanisierungsgrad_2011_degurba_eurostat) %>% 
+         urbanisierungsgrad_2011_degurba_eurostat,
+         gemeindetypologie_2012_9_typen, gemeindetypologie_2012_25_typen) %>% 
+  rename(gemtyp_9 = gemeindetypologie_2012_9_typen,
+         gemtyp_25 = gemeindetypologie_2012_25_typen) %>% 
+  mutate(gemtyp_9 = as.integer(gemtyp_9),
+         gemtyp_25 = as.integer(gemtyp_25)) %>% 
   mutate(
     r_urban1 = case_when(
       stadtische_landliche_gebiete == 1 ~  "Urban",
@@ -996,7 +1003,21 @@ raum <- read_xlsx("data-raw/BfS/Raumgliederungen.xlsx",
       TRUE ~  "")
   ) %>% 
   select(-stadtische_landliche_gebiete, -sprachgebiete,
-         -urbanisierungsgrad_2011_degurba_eurostat)
+         -urbanisierungsgrad_2011_degurba_eurostat) %>% 
+  left_join(read_xlsx("data-raw/BfS/Raumgliederungen.xlsx", 
+                      skip = 1, sheet = "CH1+CL_GDET9+2012.1") %>% 
+              remove_empty(c("rows", "cols")) %>% clean_names() %>% 
+              rename(gemtyp_9 = code,
+                     gemtyp_9_lab = label) %>% 
+              mutate(gemtyp_9 = as.integer(gemtyp_9))) %>% 
+  relocate(gemtyp_9_lab, .after = gemtyp_9) %>% 
+  left_join(read_xlsx("data-raw/BfS/Raumgliederungen.xlsx", 
+                      skip = 1, sheet = "CH1+CL_GDET25+2012.1") %>% 
+              remove_empty(c("rows", "cols")) %>% clean_names() %>% 
+              rename(gemtyp_25 = code,
+                     gemtyp_25_lab = label) %>% 
+              mutate(gemtyp_25 = as.integer(gemtyp_25))) %>% 
+  relocate(gemtyp_25_lab, .after = gemtyp_25) 
 ```
 
 ```{r include=FALSE}
@@ -1055,7 +1076,7 @@ tm_shape(se, is.master = FALSE) +
 
 ```{r echo=FALSE}
 gg21_merged %<>% 
-  mutate(r_lang = if_else(r_lang =="Romansh", "German", r_lang)) %>% 
+  mutate(r_lang = if_else(r_lang == "Romansh", "German", r_lang)) %>% 
   mutate(r_lang = as_factor(r_lang)) %>% 
   mutate(r_lang = fct_relevel(r_lang, "German", "French"))
 
@@ -1069,6 +1090,47 @@ tm_shape(se, is.master = FALSE) +
   tm_borders()  +
   tm_layout(
     title = "Language region 2021"
+  )
+```
+
+## Typology of communities - 9
+
+```{r echo=FALSE}
+frq(gg21_merged$gemtyp_9_lab)
+
+tm_shape(se, is.master = FALSE) +
+  tm_fill(col = "#a7cdf2")  +
+  tm_shape(gg21_merged) +
+  tm_fill(col = "gemtyp_9_lab", palette = "-Accent")  +
+  tm_shape(kt) +
+  tm_borders()  +
+  tm_layout(
+    title = "Typology of communities 2021"
+  )
+```
+
+## Typology of communities - 25
+
+```{r echo=FALSE}
+frq(gg21_merged$gemtyp_25_lab)
+# length(unique(gg21_merged$gemtyp_25_lab))
+
+tm_shape(se, is.master = FALSE) +
+  tm_fill(col = "gray90")  +
+  tm_shape(gg21_merged) +
+  tm_fill(col = "gemtyp_25_lab", palette = pals::cols25(n = 25))  +
+  tm_shape(kt) +
+  tm_borders()  +
+  tm_layout(
+    title = "Typology of communities 2021",
+    legend.show = FALSE
+  )
+
+tm_shape(gg21_merged) +
+  tm_fill(col = "gemtyp_25_lab", palette = pals::cols25(n = 25))  +
+  tm_layout(
+    title = "Typology of communities 2021",
+    legend.only = TRUE
   )
 ```
 

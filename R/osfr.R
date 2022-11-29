@@ -27,7 +27,7 @@ project %>%
   osf_ls_nodes() %>%
   filter(name == "Results") %>%
   osf_ls_files() %>%
-  filter(name == "exp_deaths_2020_year.Rds") %>%
+  filter(name == "exp_deaths_2020_year.zip") %>%
   osf_download(path = "results",
                conflicts = "error")
 
