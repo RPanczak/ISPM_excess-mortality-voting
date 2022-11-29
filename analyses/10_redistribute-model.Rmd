@@ -99,8 +99,8 @@ names(exp_deaths_2020_year)
 sapply(exp_deaths_2020_year, function(x) sum(is.na(x)))
 
 exp_deaths_2020_year %>% 
-  filter(it <= 10) %>%
-  ggplot(aes(x = munici_observed, color = it)) + 
+  filter(it <= 100) %>%
+  ggplot(aes(x = munici_observed, color = it, group = it)) + 
   geom_density()
 
 summary(exp_deaths_2020_year$munici_observed)
@@ -154,11 +154,9 @@ frq(data, munici_observed < munici_exp_deaths)
 Zeros have to handled?  
 
 ```{r}
-frq(data, munici_observed == 0)
-frq(data, munici_exp_deaths == 0)
-
 frq(data, munici_observed == 0 & munici_exp_deaths == 0)
 frq(data, munici_observed > 0 & munici_exp_deaths == 0)
+frq(data, munici_observed == 0 & munici_exp_deaths > 0)
 
 # data = data %>% 
 #   mutate(munici_exp_deaths = ifelse(munici_exp_deaths == 0, 0.0000001, munici_exp_deaths))
@@ -234,6 +232,138 @@ formula_adj = munici_observed ~ sex +
   as.factor(r_urban1) +
   # as.factor(r_urban2) +
   as.factor(r_lang)
+
+model_adj = inla(formula = formula_adj,
+                 data = data,
+                 family = "Poisson",
+                 E = munici_exp_deaths, 
+                 control.compute = list(config = TRUE, dic = TRUE),
+                 quantiles = c(0.025, 0.5, 0.975),
+                 num.threads = threads,
+                 safe = TRUE,
+                 verbose = FALSE)
+```
+
+```{r}
+summary(model_adj)
+```
+
+```{r echo=FALSE}
+fixed = model_adj$summary.fixed %>% 
+  mutate(var = row.names(.)) %>%
+  filter(var != "(Intercept)") %>% 
+  mutate(`0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) 
+
+fixed %>% 
+  ggplot(aes(y = var)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
+  theme_minimal() + 
+  scale_x_log10() +
+  ylab("") 
+```
+
+## Model run 3
+
+```{r}
+formula_adj = munici_observed ~ sex +
+  # as.factor(age_group) + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
+  as.factor(border) + 
+  as.factor(median_ssep3_q) + 
+  # as.factor(r_urban1) +
+  as.factor(r_urban2) +
+  as.factor(r_lang)
+
+model_adj = inla(formula = formula_adj,
+                 data = data,
+                 family = "Poisson",
+                 E = munici_exp_deaths, 
+                 control.compute = list(config = TRUE, dic = TRUE),
+                 quantiles = c(0.025, 0.5, 0.975),
+                 num.threads = threads,
+                 safe = TRUE,
+                 verbose = FALSE)
+```
+
+```{r}
+summary(model_adj)
+```
+
+```{r echo=FALSE}
+fixed = model_adj$summary.fixed %>% 
+  mutate(var = row.names(.)) %>%
+  filter(var != "(Intercept)") %>% 
+  mutate(`0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) 
+
+fixed %>% 
+  ggplot(aes(y = var)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
+  theme_minimal() + 
+  scale_x_log10() +
+  ylab("") 
+```
+
+## Model run 4
+
+```{r}
+formula_adj = munici_observed ~ sex +
+  # as.factor(age_group) + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
+  # f(gemtyp_9_lab, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  as.factor(gemtyp_9_lab) 
+
+model_adj = inla(formula = formula_adj,
+                 data = data,
+                 family = "Poisson",
+                 E = munici_exp_deaths, 
+                 control.compute = list(config = TRUE, dic = TRUE),
+                 quantiles = c(0.025, 0.5, 0.975),
+                 num.threads = threads,
+                 safe = TRUE,
+                 verbose = FALSE)
+```
+
+```{r}
+summary(model_adj)
+```
+
+```{r echo=FALSE}
+fixed = model_adj$summary.fixed %>% 
+  mutate(var = row.names(.)) %>%
+  filter(var != "(Intercept)") %>% 
+  mutate(`0.025quant` = exp(`0.025quant`),
+         `0.5quant` = exp(`0.5quant`),
+         `0.975quant` = exp(`0.975quant`)) 
+
+fixed %>% 
+  ggplot(aes(y = var)) + 
+  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
+  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
+  theme_minimal() + 
+  scale_x_log10() +
+  ylab("") 
+```
+
+## Model run 5
+
+```{r}
+formula_adj = munici_observed ~ sex +
+  # as.factor(age_group) + 
+  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
+  # f(gemtyp_25_lab, model = "iid", hyper = hyper.iid, constr = TRUE) +
+  as.factor(gemtyp_25_lab) 
 
 model_adj = inla(formula = formula_adj,
                  data = data,
