@@ -28,6 +28,8 @@ p_load(tidyverse, magrittr, skimr, scales,
        INLA)
 
 import::from("sjmisc", "frq")
+source("../R/helper_functions.R")
+theme_set(theme_bw())
 ```
 
 ```{r conflicts, include = FALSE}
@@ -57,9 +59,8 @@ knitr::opts_knit$set(width = 75)
 
 ```{r}
 kt = read_rds("data/BfS/kt.Rds")
-gg = read_rds("data/BfS/gg.Rds")
 tg3o = read_rds("data/BfS/tg3o.Rds")
-se_alt = read_rds("data/BfS/se_alt.Rds")
+shap = list(kt=kt,tg3o=tg3o)
 ```
 
 ## Downscaled data
@@ -69,16 +70,10 @@ Prepared in `08.Rmd`.
 ```{r}
 exp_deaths_2020_year = read_rds("results/exp_deaths_2020_year.Rds") %>% 
   select(-cant_exp_deaths, -cant_observed, -p)  %>% 
-  mutate(id_kt = as.integer(as.factor(canton)))
+  mutate(id_kt = as.integer(as.factor(canton))) 
 ```
 
 Removing communities without voting data.  
-
-```{r echo=FALSE}
-# frq(exp_deaths_2020_year, is.na(vote_yes_jun_cat))
-
-frq(exp_deaths_2020_year %>% filter(is.na(vote_yes_jun_cat)), GMDNAME)
-```
 
 ```{r}
 exp_deaths_2020_year = exp_deaths_2020_year %>% 
@@ -93,6 +88,41 @@ exp_deaths_2020_year = exp_deaths_2020_year %>%
   filter(age_group != "<40") 
 ```
 
+Create special variables for inla.
+
+```{r}
+exp_deaths_2020_year = exp_deaths_2020_year %>% 
+  mutate(id_space=as.numeric(as.factor(GMDNR)),
+         id_space2=id_space,
+         sex_fem=ifelse(sex=="Female",1,0),
+         age_num=as.numeric(as.factor(age_group)),
+         age_60s=ifelse(age_group=="60-69",1,0),
+         age_70s=ifelse(age_group=="70-79",1,0),
+         age_80s=ifelse(age_group=="80+",1,0),
+         type_urban=ifelse(r_urban1=="Urban",1,0),
+         type_rural=ifelse(r_urban1=="Rural",1,0),
+         density_high=ifelse(r_urban2=="Dense",1,0),
+         density_low=ifelse(r_urban2=="Low",1,0),
+         sep5=ifelse(median_ssep3_q=="5th - highest",1,0),
+         sep4=ifelse(median_ssep3_q=="4th",1,0),
+         sep2=ifelse(median_ssep3_q=="2nd",1,0),
+         sep1=ifelse(median_ssep3_q=="1st - lowest",1,0),
+         lang_fr=ifelse(r_lang=="French",1,0),
+         lang_it=ifelse(r_lang=="Italian",1,0),
+         vote_nov_q5=ifelse(vote_yes_nov_cat==5,1,0),
+         vote_nov_q4=ifelse(vote_yes_nov_cat==4,1,0),
+         vote_nov_q3=ifelse(vote_yes_nov_cat==3,1,0),
+         vote_nov_q2=ifelse(vote_yes_nov_cat==2,1,0),
+         vote_nov_q1=ifelse(vote_yes_nov_cat==1,1,0),
+         vote_jun_q5=ifelse(vote_yes_jun_cat==5,1,0),
+         vote_jun_q4=ifelse(vote_yes_jun_cat==4,1,0),
+         vote_jun_q3=ifelse(vote_yes_jun_cat==3,1,0),
+         vote_jun_q2=ifelse(vote_yes_jun_cat==2,1,0),
+         vote_jun_q1=ifelse(vote_yes_jun_cat==1,1,0),
+         E=log(ifelse(munici_exp_deaths==0,1e-4,munici_exp_deaths)))
+```
+
+
 ```{r eval=FALSE, include=FALSE}
 names(exp_deaths_2020_year)
 
@@ -101,298 +131,532 @@ sapply(exp_deaths_2020_year, function(x) sum(is.na(x)))
 exp_deaths_2020_year %>% 
   filter(it <= 100) %>%
   ggplot(aes(x = munici_observed, color = it, group = it)) + 
-  geom_density()
+  geom_density() +
+  scale_x_log10()
 
 summary(exp_deaths_2020_year$munici_observed)
 ```
 
 <!-- ----------------------------------------------------- -->
 
-# Modelling
+# Modelling observed and expected
 
-## Observed & expected 
+## Step 1: model development
 
-Using only one iteration for now  
+Using only one iteration.
 
 ```{r}
-data = exp_deaths_2020_year %>% 
+data1 = exp_deaths_2020_year %>% 
   filter(it == 3) 
 ```
 
-```{r}
-summary(data$munici_observed)
-summary(data$munici_exp_deaths)
-frq(data, vote_yes_jun_cat)
-```
 
-```{r}
-data %>% 
-  ggplot(aes(x = munici_observed, y = munici_exp_deaths)) + 
-  # geom_smooth(aes(weight = munici_exp_deaths)) +
-  geom_abline(intercept = 0, slope = 1, color = "grey40") +
-  geom_point(aes(color = factor(vote_yes_jun_cat), 
-                 size = munici_pop), 
-             alpha = 0.5) + 
-  scale_color_viridis(option = "turbo", direction = 1, discrete = TRUE) + 
-  scale_x_sqrt() + scale_y_sqrt() +
-  coord_fixed() +
-  theme_light() +
-  facet_grid(vars(sex), vars(age_group)) +
-  xlab("Observed") + ylab("Expected")
-```
-
-```{r include=FALSE}
-ggsave("docs/oe_scat.png", units = "px", width = 2*1920, height = 2*1080)
-```
-
-```{r}
-frq(data, munici_observed == munici_exp_deaths)
-frq(data, munici_observed > munici_exp_deaths)
-frq(data, munici_observed < munici_exp_deaths)
-```
-
-Zeros have to handled?  
-
-```{r}
-frq(data, munici_observed == 0 & munici_exp_deaths == 0)
-frq(data, munici_observed > 0 & munici_exp_deaths == 0)
-frq(data, munici_observed == 0 & munici_exp_deaths > 0)
-
-# data = data %>% 
-#   mutate(munici_exp_deaths = ifelse(munici_exp_deaths == 0, 0.0000001, munici_exp_deaths))
-```
-
-## INLA setup
+### INLA setup
 
 ```{r}
 hyper.iid = list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
-
 hyper.bym2 = list(theta1 = list("PCprior", c(1, 0.01)), 
                   theta2 = list("PCprior", c(0.5, 0.5)))
-
 threads = parallel::detectCores()
 ```
 
-## Model run 1
+### Model 1.0: no covariates
+
+We use a model structure similar to Poisson regression, where $O_{i,j,k}$, the number of observed deaths in 2020 in municipality $i$, age group $j$ and sex group $k$, depends on the number of expected deaths $E_{i,j,k}$ based on historical data and a linear predictor $\lambda$. 
+
+$$
+O_i \sim \text{Poisson}(E_i \times \exp(\lambda)) \\
+$$
+At start, the linear predictor $\lambda$ only includes one intercept parameter $\alpha$, so that the estimate of $\exp(\alpha)$ can be interpreted as an average relative excess mortality for 2020. By adding covariates to $\lambda$, we aim to disentangle the various factors that are associated with excess mortality at the local level.
+
+We implement this model in R-INLA, a Bayesian inference package that is especially adapted to spatial data. This is achieved in practice by including $\log (E_{i,j,k})$ as an offset (although an alternative formulation based on the E argument exists). During model development, we compare different model versions based on the WAIC (lower values imply a better fit). 
+
 
 ```{r}
-formula_cru = munici_observed ~ sex +
-  # as.factor(age_group) + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
-  as.factor(vote_yes_jun_cat) 
-
-model_cru = inla(formula = formula_cru,
-                 data = data,
-                 family = "Poisson",
-                 E = munici_exp_deaths, 
-                 control.compute = list(config = TRUE, dic = TRUE),
-                 quantiles = c(0.025, 0.5, 0.975),
-                 num.threads = threads,
-                 safe = TRUE,
-                 verbose = FALSE)
+model1.0 = INLA::inla(munici_observed ~ 1 + offset(E),
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.0)
+exp(model1.0$summary.fixed)
 ```
 
-```{r}
-summary(model_cru)
+As a sanity check, we find a relative excess mortality of 35% for 2020, that is coherent with a simple calculation (74,776 observed / 55,221 expected = 1.35). Remember that we excluded the age group 0-40, which explains why this is higher than reported numbers in Switzerland, generally around 10% for 2020. We can also look at the model fit and at the residuals. Obviously the model fit is not good here, as this basic model assumes a unique relative excess mortality for all areas, sexes and age groups.
+
+
+```{r echo=FALSE}
+modelfit1(model1.0,data1,nf=20)
 ```
 
+### Model 1.1: age and sex
+
+We hypothesize that excess mortality affected different age and sex groups differently. We thus add the age group, the sex and the interaction of the two as covariates.
+
 ```{r}
-exp(model_cru$summary.fixed)
+model1.1 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group,
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.1)
+exp(model1.1$summary.fixed)
+model1.1$waic$waic - model1.0$waic$waic 
+```
+
+As expected, the relative excess mortality varies a lot across age and sex groups. It's very small in females aged 40-59 and 60-69 (in fact the data is compatible with no excess in both cases). It increases in females aged 70-79, and even more so aged 80+. It's comparatively higher than females in males below 80, but somewhat surprisingly lower in age group 80+.
+We observe an improvement of the model fit, not easy to see on the plot because of the large number of points, but made clear by the large decrease in WAIC.
+
+```{r echo=FALSE}
+modelfit1(model1.1,data1,nf=20)
+```
+
+### Model 1.2: spatial variability
+
+We now account for spatial variability, first in a simple way using an i.i.d. random effect, so that all municipalities can vary independently from each other around a global average.
+
+```{r}
+model1.2 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "iid", hyper = hyper.iid, constr = TRUE),
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.2)
+exp(model1.2$summary.fixed)
+model1.2$waic$waic - model1.1$waic$waic 
+```
+
+The age and sex effect remains similar, but the model fit as measured by the WAIC is improved now that we account for local differences. We can observe this municipality effect, that applies in all age and sex groups of the municipality in the same way.
+
+```{r echo=FALSE}
+map_munic(model1.2,data1,shap)
 ```
 
 ```{r echo=FALSE}
-fixed = model_cru$summary.fixed %>% 
-  mutate(var = row.names(.)) %>%
-  filter(var != "(Intercept)") %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`)) 
-
-fixed %>% 
-  ggplot(aes(y = var)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
-  theme_minimal() + 
-  scale_x_log10() +
-  ylab("") 
+rank_munic(model1.2,data1,nf=50)
 ```
 
-## Model run 2
+We find noisy estimates in some places, suggesting issues related to small area estimation. One solution is to partially pool information between municipalities that are geographically linked.
+
+### Model 1.3: structured spatial variability
+
+We still focus on spatial variability, but now the municipalities are no longer independent: we account for the correlation between neighboring municipalities with a BYM model. This will allow us to differentiate between what can be attributed to a municipality in particular, and what can be attributed to regional effects (like a COVID wave).
 
 ```{r}
-formula_adj = munici_observed ~ sex +
-  # as.factor(age_group) + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
-  as.factor(vote_yes_jun_cat) + 
-  as.factor(border) + as.factor(median_ssep3_q) + 
-  as.factor(r_urban1) +
-  # as.factor(r_urban2) +
-  as.factor(r_lang)
-
-model_adj = inla(formula = formula_adj,
-                 data = data,
-                 family = "Poisson",
-                 E = munici_exp_deaths, 
-                 control.compute = list(config = TRUE, dic = TRUE),
-                 quantiles = c(0.025, 0.5, 0.975),
-                 num.threads = threads,
-                 safe = TRUE,
-                 verbose = FALSE)
+model1.3 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, 
+                          hyper = hyper.bym2, constr=TRUE),
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.3)
+exp(model1.3$summary.fixed)
+model1.3$waic$waic - model1.2$waic$waic 
 ```
 
-```{r}
-summary(model_adj)
+We see that the structure accounts for about half of the spatial variability (Phi estimated to 0.5). This addition also improves the model fit as measured by the WAIC.
+
+```{r echo=FALSE}
+map_munic(model1.3,data1,shap)
 ```
 
 ```{r echo=FALSE}
-fixed = model_adj$summary.fixed %>% 
-  mutate(var = row.names(.)) %>%
-  filter(var != "(Intercept)") %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`)) 
-
-fixed %>% 
-  ggplot(aes(y = var)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
-  theme_minimal() + 
-  scale_x_log10() +
-  ylab("") 
+rank_munic(model1.3,data1,nf=50)
 ```
 
-## Model run 3
+We observe that many of the municipalities with higher relative excess mortality are in the western and southern parts, the ones that were hit first by COVID-19 in 2020. We also observe areas with higher excess in the North and Northeastern parts. These largely correspond to areas that were hit the most during the first and the second COVID-19 waves of spring and fall 2020 (REF Konstantinoudis et al NatCom 2022). 
+
+
+### Model 1.4: local characteristics
+
+Having accounted for regional variability (arguably caused by COVID-19 waves of different timings and scales), we move on to explore the effect of local characteristics at the municipality level. We look at the following covariates (at the municipal level):
+
+- population density in three classes (high, medium or low population density, reference is medium) as defined for each municipality by the Federal Statistical Office;
+
+- median socio-economic position (highest means higher position) in quintiles (reference is 3rd quintile);
+
+- municipality bordering another country.
+
 
 ```{r}
-formula_adj = munici_observed ~ sex +
-  # as.factor(age_group) + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
-  as.factor(border) + 
-  as.factor(median_ssep3_q) + 
-  # as.factor(r_urban1) +
-  as.factor(r_urban2) +
-  as.factor(r_lang)
-
-model_adj = inla(formula = formula_adj,
-                 data = data,
-                 family = "Poisson",
-                 E = munici_exp_deaths, 
-                 control.compute = list(config = TRUE, dic = TRUE),
-                 quantiles = c(0.025, 0.5, 0.975),
-                 num.threads = threads,
-                 safe = TRUE,
-                 verbose = FALSE)
+model1.4 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, 
+                          hyper = hyper.bym2, constr=TRUE) +
+                        density_high + density_low +
+                        sep1+sep2+sep4+sep5 +
+                        border,
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.4)
+exp(model1.4$summary.fixed)
+model1.4$waic$waic - model1.3$waic$waic 
 ```
 
 ```{r}
-summary(model_adj)
+drivers_plot(model1.4,data1)
 ```
 
 ```{r echo=FALSE}
-fixed = model_adj$summary.fixed %>% 
-  mutate(var = row.names(.)) %>%
-  filter(var != "(Intercept)") %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`)) 
-
-fixed %>% 
-  ggplot(aes(y = var)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
-  theme_minimal() + 
-  scale_x_log10() +
-  ylab("") 
+map_munic(model1.4,data1,shap)
 ```
 
-## Model run 4
+We see that the model fit improves (lower WAIC) and that some of the spatial variability is not explained by the covariates (precision for id_space increases). We find two clear effects. First, low population density is associated with lower relative excess mortality. Second, the lowest quintile of socio-economic position (the 20% least affluent municipalities according to this metric) have higher relative excess mortality. In both these cases, the 95% credible intervals exclude 1, indicating a clear effect, but there are also other associations that may exist with border municipalities (in favour of a positive association) and with highest SEP quintiles Q4 and Q5 (in favour of a negative association).
+
+All of these estimates apply similarly to all age and sex groups (no interaction), and are adjusted for the regional variability associated with COVID-19 waves in 2020.
+
+### Model 1.5: language regions
+
+One idea is to look at the effect of language regions. The difficulty is the colinearity between language regions and the first COVID-19 wave of 2020, that primarily affected Ticino (Italian) and Southwestern Switzerland (French), mostly because of how the initial global spread of COVID-19 occurred (with large early epidemics in Italy and then France). These effects are much larger than any effect that could be attributed to cultural differences between language regions, so it is quite difficult to estimate the latter. We still attempt to do so by adding the language of each municipality (reference is German) to our model.
 
 ```{r}
-formula_adj = munici_observed ~ sex +
-  # as.factor(age_group) + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
-  # f(gemtyp_9_lab, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  as.factor(gemtyp_9_lab) 
-
-model_adj = inla(formula = formula_adj,
-                 data = data,
-                 family = "Poisson",
-                 E = munici_exp_deaths, 
-                 control.compute = list(config = TRUE, dic = TRUE),
-                 quantiles = c(0.025, 0.5, 0.975),
-                 num.threads = threads,
-                 safe = TRUE,
-                 verbose = FALSE)
+model1.5 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, 
+                          hyper = hyper.bym2, constr=TRUE) +
+                        density_high + density_low +
+                        sep1+sep2+sep4+sep5 +
+                        border +
+                        lang_fr + lang_it,
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.5)
+exp(model1.5$summary.fixed)
+model1.5$waic$waic - model1.4$waic$waic 
 ```
 
 ```{r}
-summary(model_adj)
+drivers_plot(model1.5,data1)
 ```
 
 ```{r echo=FALSE}
-fixed = model_adj$summary.fixed %>% 
-  mutate(var = row.names(.)) %>%
-  filter(var != "(Intercept)") %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`)) 
-
-fixed %>% 
-  ggplot(aes(y = var)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
-  theme_minimal() + 
-  scale_x_log10() +
-  ylab("") 
+map_munic_lang(model1.5,data1,shap)
 ```
 
-## Model run 5
+
+At first sight, we may thing that there is a large effect of language region on excess mortality, with 9% more deaths than expected in French-speaking municipalities and 13% more in Italian-speaking municipalities compared to German. However, as expected this association is likely counfounded by the regional variability associated with COVID-19 waves in 2020. Indeed, if we now look at the geographically-structured municipality effect, we see that the higher excess in South and Southwestern Switzerland is now more evenly distributed (captured by the language effect), while French-speaking regions that were not as impacted during the first wave (such as Neuchatel and Jura) now have a negative municipality effect to compensate. These nonsensical results highlight the difficulty to estimate the effect of language regions, which remains inconclusive.
+
+
+### Model 1.6: voting
+
+We leave aside the question of language, and now focus on results from two referendums about COVID-19 control measures held in June and November 2020. The point here is not to look at causality one way or the other, as we look at overall excess for 2020, and the voting took place at two separated points. A preliminary analysis has reported a negative association between the proportion of "yes" vote at the November referendum at the cantonal level and 7-day incidence on December 7, 2021 (https://smw.ch/index.php/smw/announcement/view/50).
+
 
 ```{r}
-formula_adj = munici_observed ~ sex +
-  # as.factor(age_group) + 
-  f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) +
-  # f(gemtyp_25_lab, model = "iid", hyper = hyper.iid, constr = TRUE) +
-  as.factor(gemtyp_25_lab) 
-
-model_adj = inla(formula = formula_adj,
-                 data = data,
-                 family = "Poisson",
-                 E = munici_exp_deaths, 
-                 control.compute = list(config = TRUE, dic = TRUE),
-                 quantiles = c(0.025, 0.5, 0.975),
-                 num.threads = threads,
-                 safe = TRUE,
-                 verbose = FALSE)
+model1.6 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, 
+                          hyper = hyper.bym2, constr=TRUE) +
+                        density_high + density_low +
+                        sep1+sep2+sep4+sep5 +
+                        border +
+                        vote_jun_q1 + vote_jun_q2 + vote_jun_q4 + vote_jun_q5,
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.6)
+exp(model1.6$summary.fixed)
+model1.6$waic$waic - model1.4$waic$waic 
 ```
 
 ```{r}
-summary(model_adj)
+drivers_plot(model1.6,data1)
 ```
 
-```{r echo=FALSE}
-fixed = model_adj$summary.fixed %>% 
-  mutate(var = row.names(.)) %>%
-  filter(var != "(Intercept)") %>% 
-  mutate(`0.025quant` = exp(`0.025quant`),
-         `0.5quant` = exp(`0.5quant`),
-         `0.975quant` = exp(`0.975quant`)) 
+The results are not conclusive. Compared to the 3rd quintile of "yes" vote to maintain the COVID law at the June referendum, taken as a reference, we observe slightly increased relative excess mortality in all other quintiles, always compatible with no effect (relative excess = 1).  This only suggests a lower excess mortality in the third quantile, corresponding to municipalities with between 53 and 65% of "yes", which is nonsensical. This can be shown by changing the reference group for instance to Q1.
 
-fixed %>% 
-  ggplot(aes(y = var)) + 
-  geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + 
-  geom_vline(aes(xintercept = 1), color = "darkorchid") + 
-  theme_minimal() + 
-  scale_x_log10() +
-  ylab("") 
+```{r}
+model1.6b = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, 
+                          hyper = hyper.bym2, constr=TRUE) +
+                        density_high + density_low +
+                        sep1+sep2+sep4+sep5 +
+                        border +
+                        vote_jun_q2 + vote_jun_q3 + vote_jun_q4 + vote_jun_q5,
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
 ```
+
+```{r}
+drivers_plot2(model1.6b,data1)
+```
+
+Taking Q1 as a reference highlights the absence of clear association between results of the June referendum and 2020 excess mortality in this analysis.
+
+```{r}
+model1.6c = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, 
+                          hyper = hyper.bym2, constr=TRUE) +
+                        density_high + density_low +
+                        sep1+sep2+sep4+sep5 +
+                        border +
+                        vote_nov_q1 + vote_nov_q2 + vote_nov_q4 + vote_nov_q5,
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+```
+
+```{r}
+drivers_plot(model1.6c,data1)
+```
+
+We also don't find any clear association when looking at the November referendum.
+
+
+
+
+## Step 2: estimation with full uncertainty propagation
+
+Having concluded that model 1.4 is the most adequate to our research questions, we confirm the results by running this model multiple times on multiple iterations of excess mortality, then combine the outputs.
+
+
+TODO IF WE ALL AGREE ON MODEL 1.4
+
+
+<!-- ### Model 1.7: interactions between local characteristics and age groups -->
+
+<!-- Going back to model 1.4, we now look at interactions between local characteristics associated with excess mortality (i.e. population density and SEP) on one hand, and age groups on the other hand. -->
+
+<!-- ```{r} -->
+<!-- model1.7 = INLA::inla(munici_observed ~ - 1 + offset(E) + -->
+<!--                         sex:age_group + -->
+<!--                         f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE,  -->
+<!--                           hyper = hyper.bym2, constr=TRUE) + -->
+<!--                         density_high:age_group + density_low:age_group + -->
+<!--                         sep1:age_group+sep2:age_group+sep4:age_group+sep5:age_group + -->
+<!--                         border:age_group, -->
+<!--                       data = data1, -->
+<!--                       family = "Poisson", -->
+<!--                       control.compute = list(config = TRUE, waic = TRUE), -->
+<!--                       quantiles = c(0.025, 0.5, 0.975), -->
+<!--                       num.threads = threads, -->
+<!--                       safe = TRUE) -->
+<!-- summary(model1.7) -->
+<!-- exp(model1.7$summary.fixed) -->
+<!-- model1.7$waic$waic - model1.4$waic$waic  -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- drivers_plot(model1.7,data1) -->
+<!-- ``` -->
+
+<!-- ```{r echo=FALSE} -->
+<!-- map_munic(model1.4,data1) -->
+<!-- ``` -->
+
+<!-- We see that the model fit improves (lower WAIC) and that some of the spatial variability is not explained by the covariates (precision for id_space increases). We find two clear effects. First, low population density is associated with lower relative excess mortality. Second, the lowest quintile of socio-economic position (the 20% least affluent municipalities according to this metric) have higher relative excess mortality. In both these cases, the 95% credible intervals exclude 1, indicating a clear effect, but there are also other associations that may exist with border municipalities (in favour of a positive association) and with highest SEP quintiles Q4 and Q5 (in favour of a negative association). -->
+
+<!-- All of these estimates apply similarly to all age and sex groups (no interaction), and are adjusted for the regional variability associated with COVID-19 waves in 2020. -->
+
+
+<!-- ## Model run 2 -->
+
+<!-- ```{r} -->
+<!-- formula_adj = munici_observed ~ sex + -->
+<!--   # as.factor(age_group) + -->
+<!--   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) + -->
+<!--   as.factor(vote_yes_jun_cat) + -->
+<!--   as.factor(border) + as.factor(median_ssep3_q) + -->
+<!--   as.factor(r_urban1) + -->
+<!--   # as.factor(r_urban2) + -->
+<!--   as.factor(r_lang) -->
+
+<!-- model_adj = inla(formula = formula_adj, -->
+<!--                  data = data, -->
+<!--                  family = "Poisson", -->
+<!--                  E = munici_exp_deaths, -->
+<!--                  control.compute = list(config = TRUE, dic = TRUE), -->
+<!--                  quantiles = c(0.025, 0.5, 0.975), -->
+<!--                  num.threads = threads, -->
+<!--                  safe = TRUE, -->
+<!--                  verbose = FALSE) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- summary(model_adj) -->
+<!-- ``` -->
+
+<!-- ```{r echo=FALSE} -->
+<!-- fixed = model_adj$summary.fixed %>% -->
+<!--   mutate(var = row.names(.)) %>% -->
+<!--   filter(var != "(Intercept)") %>% -->
+<!--   mutate(`0.025quant` = exp(`0.025quant`), -->
+<!--          `0.5quant` = exp(`0.5quant`), -->
+<!--          `0.975quant` = exp(`0.975quant`)) -->
+
+<!-- fixed %>% -->
+<!--   ggplot(aes(y = var)) + -->
+<!--   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + -->
+<!--   geom_vline(aes(xintercept = 1), color = "darkorchid") + -->
+<!--   theme_minimal() + -->
+<!--   scale_x_log10() + -->
+<!--   ylab("") -->
+<!-- ``` -->
+
+<!-- ## Model run 3 -->
+
+<!-- ```{r} -->
+<!-- formula_adj = munici_observed ~ sex + -->
+<!--   # as.factor(age_group) + -->
+<!--   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) + -->
+<!--   as.factor(border) + -->
+<!--   as.factor(median_ssep3_q) + -->
+<!--   # as.factor(r_urban1) + -->
+<!--   as.factor(r_urban2) + -->
+<!--   as.factor(r_lang) -->
+
+<!-- model_adj = inla(formula = formula_adj, -->
+<!--                  data = data, -->
+<!--                  family = "Poisson", -->
+<!--                  E = munici_exp_deaths, -->
+<!--                  control.compute = list(config = TRUE, dic = TRUE), -->
+<!--                  quantiles = c(0.025, 0.5, 0.975), -->
+<!--                  num.threads = threads, -->
+<!--                  safe = TRUE, -->
+<!--                  verbose = FALSE) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- summary(model_adj) -->
+<!-- ``` -->
+
+<!-- ```{r echo=FALSE} -->
+<!-- fixed = model_adj$summary.fixed %>% -->
+<!--   mutate(var = row.names(.)) %>% -->
+<!--   filter(var != "(Intercept)") %>% -->
+<!--   mutate(`0.025quant` = exp(`0.025quant`), -->
+<!--          `0.5quant` = exp(`0.5quant`), -->
+<!--          `0.975quant` = exp(`0.975quant`)) -->
+
+<!-- fixed %>% -->
+<!--   ggplot(aes(y = var)) + -->
+<!--   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + -->
+<!--   geom_vline(aes(xintercept = 1), color = "darkorchid") + -->
+<!--   theme_minimal() + -->
+<!--   scale_x_log10() + -->
+<!--   ylab("") -->
+<!-- ``` -->
+
+<!-- ## Model run 4 -->
+
+<!-- ```{r} -->
+<!-- formula_adj = munici_observed ~ sex + -->
+<!--   # as.factor(age_group) + -->
+<!--   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) + -->
+<!--   # f(gemtyp_9_lab, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   as.factor(gemtyp_9_lab) -->
+
+<!-- model_adj = inla(formula = formula_adj, -->
+<!--                  data = data, -->
+<!--                  family = "Poisson", -->
+<!--                  E = munici_exp_deaths, -->
+<!--                  control.compute = list(config = TRUE, dic = TRUE), -->
+<!--                  quantiles = c(0.025, 0.5, 0.975), -->
+<!--                  num.threads = threads, -->
+<!--                  safe = TRUE, -->
+<!--                  verbose = FALSE) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- summary(model_adj) -->
+<!-- ``` -->
+
+<!-- ```{r echo=FALSE} -->
+<!-- fixed = model_adj$summary.fixed %>% -->
+<!--   mutate(var = row.names(.)) %>% -->
+<!--   filter(var != "(Intercept)") %>% -->
+<!--   mutate(`0.025quant` = exp(`0.025quant`), -->
+<!--          `0.5quant` = exp(`0.5quant`), -->
+<!--          `0.975quant` = exp(`0.975quant`)) -->
+
+<!-- fixed %>% -->
+<!--   ggplot(aes(y = var)) + -->
+<!--   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + -->
+<!--   geom_vline(aes(xintercept = 1), color = "darkorchid") + -->
+<!--   theme_minimal() + -->
+<!--   scale_x_log10() + -->
+<!--   ylab("") -->
+<!-- ``` -->
+
+<!-- ## Model run 5 -->
+
+<!-- ```{r} -->
+<!-- formula_adj = munici_observed ~ sex + -->
+<!--   # as.factor(age_group) + -->
+<!--   f(id_age, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_kt, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, hyper = hyper.bym2) + -->
+<!--   # f(gemtyp_25_lab, model = "iid", hyper = hyper.iid, constr = TRUE) + -->
+<!--   as.factor(gemtyp_25_lab) -->
+
+<!-- model_adj = inla(formula = formula_adj, -->
+<!--                  data = data, -->
+<!--                  family = "Poisson", -->
+<!--                  E = munici_exp_deaths, -->
+<!--                  control.compute = list(config = TRUE, dic = TRUE), -->
+<!--                  quantiles = c(0.025, 0.5, 0.975), -->
+<!--                  num.threads = threads, -->
+<!--                  safe = TRUE, -->
+<!--                  verbose = FALSE) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- summary(model_adj) -->
+<!-- ``` -->
+
+<!-- ```{r echo=FALSE} -->
+<!-- fixed = model_adj$summary.fixed %>% -->
+<!--   mutate(var = row.names(.)) %>% -->
+<!--   filter(var != "(Intercept)") %>% -->
+<!--   mutate(`0.025quant` = exp(`0.025quant`), -->
+<!--          `0.5quant` = exp(`0.5quant`), -->
+<!--          `0.975quant` = exp(`0.975quant`)) -->
+
+<!-- fixed %>% -->
+<!--   ggplot(aes(y = var)) + -->
+<!--   geom_pointrange(aes(x = `0.5quant`, xmin = `0.025quant`, xmax = `0.975quant`)) + -->
+<!--   geom_vline(aes(xintercept = 1), color = "darkorchid") + -->
+<!--   theme_minimal() + -->
+<!--   scale_x_log10() + -->
+<!--   ylab("") -->
+<!-- ``` -->
+<!-- } -->
