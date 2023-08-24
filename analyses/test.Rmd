@@ -1,0 +1,251 @@
+---
+title: "2020 excess mortality & voting patterns in CH"
+subtitle: "Modelling redistributed community deaths"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+set.seed(12345)
+options(scipen = 999)
+options(max.print=2500)
+
+library(pacman)
+p_load(tidyverse, magrittr, skimr, scales,
+       sf, tmap,
+       viridis,
+       INLA,
+       ggiraph)
+theme_set(theme_bw())
+```
+
+```{r conflicts, include = FALSE}
+source("R/helper_functions.R")
+tidyverse::tidyverse_conflicts()
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Data 
+
+## Spatial 
+
+```{r}
+kt = read_rds("data/BfS/kt.Rds")
+tg3o = read_rds("data/BfS/tg3o.Rds")
+shap = list(kt=kt,tg3o=tg3o)
+```
+
+## Downscaled data
+
+Prepared in `08.Rmd`.  
+
+```{r}
+exp_deaths_2020_year = read_rds("results/exp_deaths_2020_year.Rds") %>% 
+  select(-cant_exp_deaths, -cant_observed, -p)  %>% 
+  mutate(id_kt = as.integer(as.factor(canton))) 
+```
+
+Removing communities without voting data.  
+
+```{r}
+exp_deaths_2020_year = exp_deaths_2020_year %>% 
+  filter(!is.na(vote_yes_nov_cat)) %>% 
+  filter(!is.na(vote_yes_jun_cat)) 
+```
+
+Removing `<40` age group.  
+
+```{r}
+exp_deaths_2020_year = exp_deaths_2020_year %>% 
+  filter(age_group != "<40") 
+```
+
+Create special variables for inla.
+
+```{r}
+exp_deaths_2020_year = exp_deaths_2020_year %>% 
+  mutate(id_space=as.numeric(as.factor(GMDNR)),
+         id_space2=id_space,
+         sex_fem=ifelse(sex=="Female",1,0),
+         age_num=as.numeric(as.factor(age_group)),
+         age_60s=ifelse(age_group=="60-69",1,0),
+         age_70s=ifelse(age_group=="70-79",1,0),
+         age_80s=ifelse(age_group=="80+",1,0),
+         type_urban=ifelse(r_urban1=="Urban",1,0),
+         type_rural=ifelse(r_urban1=="Rural",1,0),
+         density_high=ifelse(r_urban2=="Dense",1,0),
+         density_low=ifelse(r_urban2=="Low",1,0),
+         sep5=ifelse(median_ssep3_q=="5th - highest",1,0),
+         sep4=ifelse(median_ssep3_q=="4th",1,0),
+         sep3=ifelse(median_ssep3_q=="3rd quintile",1,0),
+         sep2=ifelse(median_ssep3_q=="2nd",1,0),
+         sep1=ifelse(median_ssep3_q=="1st - lowest",1,0),
+         lang_fr=ifelse(r_lang=="French",1,0),
+         lang_it=ifelse(r_lang=="Italian",1,0),
+         vote_nov_q5=ifelse(vote_yes_nov_cat==5,1,0),
+         vote_nov_q4=ifelse(vote_yes_nov_cat==4,1,0),
+         vote_nov_q3=ifelse(vote_yes_nov_cat==3,1,0),
+         vote_nov_q2=ifelse(vote_yes_nov_cat==2,1,0),
+         vote_nov_q1=ifelse(vote_yes_nov_cat==1,1,0),
+         vote_jun_q5=ifelse(vote_yes_jun_cat==5,1,0),
+         vote_jun_q4=ifelse(vote_yes_jun_cat==4,1,0),
+         vote_jun_q3=ifelse(vote_yes_jun_cat==3,1,0),
+         vote_jun_q2=ifelse(vote_yes_jun_cat==2,1,0),
+         vote_jun_q1=ifelse(vote_yes_jun_cat==1,1,0),
+         E=log(ifelse(munici_exp_deaths==0,1e-4,munici_exp_deaths)))
+```
+
+
+```{r eval=FALSE, include=FALSE}
+names(exp_deaths_2020_year)
+
+sapply(exp_deaths_2020_year, function(x) sum(is.na(x)))
+
+exp_deaths_2020_year %>% 
+  filter(it <= 100) %>%
+  ggplot(aes(x = munici_observed, color = it, group = it)) + 
+  geom_density() +
+  scale_x_log10()
+
+summary(exp_deaths_2020_year$munici_observed)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Modelling observed and expected
+
+## Step 1: model development
+
+To facilitate model development we only use the median excess by municipality, age group and sex in 2020. 
+
+```{r}
+data1 = exp_deaths_2020_year %>% 
+  group_by(canton, GMDNR, GMDNAME, age_group, id_space, sex, munici_observed, munici_pop,
+           density_high, density_low, across(starts_with("sep")), border, lang_fr, lang_it,
+           across(starts_with("vote")),type_urban,type_rural) %>% 
+  summarise(munici_exp_deaths=median(munici_exp_deaths),
+            munici_excess=median(munici_excess)) %>% 
+  mutate(E=log(ifelse(munici_exp_deaths==0,1e-4,munici_exp_deaths)))
+rm(exp_deaths_2020_year)
+gc()
+```
+
+
+### INLA setup
+
+```{r}
+hyper.iid = list(theta = list(prior = "pc.prec", param = c(1, 0.01)))
+hyper.bym2 = list(theta1 = list("PCprior", c(1, 0.01)), 
+                  theta2 = list("PCprior", c(0.5, 0.5)))
+threads = parallel::detectCores()
+```
+
+### Model 1.0: no covariates
+
+We use a model structure similar to Poisson regression, where $O_{t,i,j,k}$, the number of observed deaths during week $t$ in municipality $i$, age group $j$ and sex group $k$, depends on the number of expected deaths $E_{t,i,j,k}$ based on historical data and a linear predictor $\lambda$. 
+
+$$
+O_i \sim \text{Poisson}(E_i \times \exp(\lambda)) \\
+$$
+At start, the linear predictor $\lambda$ only includes one intercept parameter $\alpha$, so that the estimate of $\exp(\alpha)$ can be interpreted as an average relative excess mortality for 2020. By adding covariates to $\lambda$, we aim to disentangle the various factors that are associated with excess mortality at the local level.
+
+We implement this model in R-INLA, a Bayesian inference package that is especially adapted to spatial data. This is achieved in practice by including $\log (E_{i,j,k})$ as an offset (although an alternative formulation based on the E argument exists). During model development, we compare different model versions based on the WAIC (lower values imply a better fit). 
+
+
+```{r}
+model1.0 = INLA::inla(munici_observed ~ 1 + offset(E),
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.0)
+exp(model1.0$summary.fixed)
+sum(data1$munici_observed)/sum(data1$munici_exp_deaths)
+```
+
+As a sanity check, we find a relative excess mortality of 38% for 2020, that is coherent with a simple calculation (74,776 observed / 54,046 expected = 1.38). Remember that we excluded the age group 0-40, which explains why this is higher than numbers reported for Switzerland, generally around 10% for 2020. We can also look at the model fit and at the residuals. Obviously the model fit is not good here, as this basic model assumes a unique relative excess mortality for all areas, sexes and age groups.
+
+
+```{r echo=FALSE}
+modelfit1(model1.0,data1,nf=20)
+```
+
+### Model 1.1: age and sex
+
+We hypothesize that excess mortality affected different age and sex groups differently. We thus add the age group, the sex and the interaction of the two as covariates.
+
+```{r}
+model1.1 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group,
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.1)
+exp(model1.1$summary.fixed)
+model1.1$waic$waic - model1.0$waic$waic 
+```
+
+As expected, the relative excess mortality varies a lot across age and sex groups. It's very small in females aged 40-59 and 60-69 (in fact the data is compatible with no excess in both cases). It increases in females aged 70-79, and even more so aged 80+. It's comparatively higher in males below 80, but somewhat surprisingly lower in males in age group 80+.
+We observe an improvement of the model fit, not easy to spot on the plot because of the large number of points, but made clear by the large decrease in WAIC.
+
+```{r echo=FALSE}
+modelfit1(model1.1,data1,nf=20)
+```
+
+### Model 1.2: spatial variability
+
+We now account for spatial variability, first in a simple way using an i.i.d. random effect, so that all municipalities can vary independently from each other around a global average.
+
+```{r}
+model1.2 = INLA::inla(munici_observed ~ - 1 + offset(E) +
+                        sex:age_group +
+                        f(id_space, model = "iid"),
+                      data = data1,
+                      family = "Poisson",
+                      control.compute = list(config = TRUE, waic = TRUE),
+                      quantiles = c(0.025, 0.5, 0.975),
+                      num.threads = threads,
+                      safe = TRUE)
+summary(model1.2)
+exp(model1.2$summary.fixed)
+model1.2$waic$waic - model1.1$waic$waic 
+```
+
+The age and sex effect remains similar, but the model fit as measured by the WAIC is improved now that we account for local differences. We can observe this municipality effect, that applies in all age and sex groups of the municipality in exactly the same way.
+
+```{r echo=FALSE}
+map_munic(model1.2,data1,shap,interactive=TRUE)
+```
+
