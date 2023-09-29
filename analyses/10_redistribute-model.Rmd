@@ -90,12 +90,7 @@ exp_deaths_2020_year = exp_deaths_2020_year %>%
 
 
 ```{r}
-summary_table(exp_deaths_2020_year) %>% 
-  flextable::flextable()
-```
-
-```{r}
-correlogram(exp_deaths_2020_year)
+summary_table(exp_deaths_2020_year)
 ```
 
 
@@ -379,7 +374,8 @@ At first sight, we may thing that there is a large effect of language region on 
 map_munic_lang(model1.3,data1,shap,interactive=TRUE)
 ```
 
-We can make two observations on this last map. First, French-speaking and Italian-speaking municipalities were not systematically more affected than German-speaking, with notable exceptions in the French-speaking area around Neuchâtel and in Italian-speaking municipalities of canton Graubunden. Second, there is a clear separation between the French-speaking and German-speaking municipalities around canton Fribourg, suggesting lower levels of connectivity between these communities.
+In this last map, we can make two observations. First, French-speaking and Italian-speaking municipalities are not systematically more affected by excess mortality than German-speaking municipalities, with exceptions like the area around Neuchâtel and the Italian-speaking municipalities of Graubunden. Second, there is a clear separation between the French- and German-speaking municipalities 
+
 
 #### Referendums on COVID-19 measures
 
