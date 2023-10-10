@@ -644,9 +644,9 @@ summary_table = function(x) {
               `Expected (median)`=round(median(exp)),
               `Expected (lower bound)`=round(quantile(exp,0.025)),
               `Expected (upper bound)`=round(quantile(exp,0.975)),.groups="drop") %>% 
-    mutate(`Ratio (median)`=round(`Observed`/`Expected (median)`,2),
-           `Ratio (lower bound)`=round(`Observed`/`Expected (upper bound)`,2),
-           `Ratio (upper bound)`=round(`Observed`/`Expected (lower bound)`,2)) 
+    mutate(`Relative excess (median)`=round(`Observed`/`Expected (median)`,2),
+           `Relative excess (lower bound)`=round(`Observed`/`Expected (upper bound)`,2),
+           `Relative excess (upper bound)`=round(`Observed`/`Expected (lower bound)`,2)) 
   t2 = x %>% 
     group_by(age_group,sex,it) %>% 
     summarise(obs=sum(munici_observed),exp=sum(munici_exp_deaths),.groups="drop_last") %>% 
@@ -654,9 +654,9 @@ summary_table = function(x) {
               `Expected (median)`=round(median(exp)),
               `Expected (lower bound)`=round(quantile(exp,0.025)),
               `Expected (upper bound)`=round(quantile(exp,0.975)),.groups="drop") %>% 
-    mutate(`Ratio (median)`=round(`Observed`/`Expected (median)`,2),
-           `Ratio (lower bound)`=round(`Observed`/`Expected (upper bound)`,2),
-           `Ratio (upper bound)`=round(`Observed`/`Expected (lower bound)`,2)) 
+    mutate(`Relative excess (median)`=round(`Observed`/`Expected (median)`,2),
+           `Relative excess (lower bound)`=round(`Observed`/`Expected (upper bound)`,2),
+           `Relative excess (upper bound)`=round(`Observed`/`Expected (lower bound)`,2)) 
   tt = bind_rows(t2,t1) %>% 
     replace_na(list(age_group="Total",sex="Total")) %>% 
     rename(`Age group`=age_group,`Sex`=sex)

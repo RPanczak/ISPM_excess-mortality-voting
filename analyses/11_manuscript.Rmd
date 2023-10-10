@@ -1,5 +1,5 @@
 ---
-title: "Local correlates of municipality-level excess mortality in Switzerland in 2020"
+title: "Area-level excess mortality in times of COVID-19 in Switzerland: geographical, socioeconomic and political determinants"
 author: "Julien Riou, Radoslaw Panczak, Garyfallos Konstantinoudis, Matthias Egger"
 date: "`r Sys.Date()`"
 output: word_document
@@ -24,48 +24,44 @@ kt = read_rds("data/BfS/kt.Rds")
 tg3o = read_rds("data/BfS/tg3o.Rds")
 shap = list(kt=kt,tg3o=tg3o)
 ```
+
 Target: short report EJPH, max 1200 words, abstract 100 word, 10 refs, 1 figure (https://academic.oup.com/eurpub/pages/Instructions_For_Authors#Format%20of%20contributions)
 
 # Abstract
 
+The COVID-19 related excess mortality in Switzerland is well documented, but no study examined mortality at the small-area level. We analysed excess mortality in 2020 for 2,141 Swiss municipalities using a Bayesian spatio-temporal model fitted to 2011-2019 data. Areas most affected included the Ticino, the Lake of Geneva region, the Jura and the Northeast. Rural areas,  areas with international borders, areas of lower socioeconomic position and areas with less support for control measures in the popular vote on the COVID-19 Act had greater excess mortality. Municipalities that are particularly vulnerable require special efforts to mitigate the impact of pandemics.
+
+# Key points
+
+-	Small-area excess mortality varied substantially in Switzerland in 2020, depending on the geographical location and type of municipality.
+
+-	Areas most affected included the Ticino, the Lake of Geneva region, the Jura and the Northeast of the country. 
+
+-	Rural municipalities, municipalities of lower socioeconomic position and showing lower support for COVID-19 control measures experienced higher excess mortality. 
+
+-	Public health interventions targeted at vulnerable municipalities, including testing and vaccination campaigns, could mitigate the impact in these areas in future pandemics. 
+
 # Introduction
 
-Excess all-cause mortality has become central to assessing the impact of the COVID-19 pandemic and other unusual events such as heat waves on mortality. 
-In most cases, the estimation of excess mortality relies upon predicting the expected number of deaths in a given population from historical data. 
+Excess all-cause mortality is central to assessing the impact of the COVID-19 pandemic. 
+Its estimation relies on predicting the expected number of deaths in a given population from historical data.
 Multiple approaches have been proposed, with varying levels of complexity, length of training data, assumptions regarding population sizes, and groups of stratification. 
-The levels of spatial and temporal granularity have also varied from the country down to the municipal level[@brandily2021poorly][@blangiardo2020estimating][@acosta2022all][antonio2022comprehensive], depending on data availability and research questions.
-Several ecological studies have aimed to explore associations the temporal variability in excess mortality to various local characteristics[@brandily2021poorly][@bertoli2020turnout]. 
-In this study, we aimed to estimate excess mortality at the municipal level in Switzerland in 2020, describe spatial patterns, and explore associations with local covariates such as rural/urban classification, international borders, socio-economic position and results from two referendums on COVID-19 control measures held in 2020.  
-We aimed to create a high-resolution map of the remaining municipality-specific effects on excess mortality in 2020 adjusted for these factors, and shed a new light on the first year of the pandemic.
+In previous work the level of spatial granularity has varied,  from country to the municipal level,[@brandily2021poorly][@blangiardo2020estimating][@acosta2022all], with some studies exploring associations between excess mortality and area characteristics.[@brandily2021poorly][@bertoli2020turnout]. 
+We estimated excess mortality at the municipal level for the year 2020 in Switzerland and explored associations with characteristics of municipalities, such as level of urbanisation, vicinity of international borders, socioeconomic position and voting behavior in a referendum on COVID-19 control measures. 
 
 # Methods
 
-Data on all-cause deaths at the municipal level in Switzerland for 2020 were obtained from the Swiss National Cohort. 
-Data on total population and all-cause deaths at the cantonal level for the years 2011–2020 were obtained from the Federal Statistical Office (FSO).
-These data were aggregated by week, canton (26 levels), age group (40–59, 60–69, 70–79 and 80 and older, ages below 40 were ignored because of low deaths counts [@konstantinoudis2022regional]) and sex 
-Data on ambient temperature were obtained from the ECMWF Reanalysis version 5 (ERA5). 
+We obtained data on all-cause deaths for the years 2011–2020 from the Federal Statistical Office (FSO), aggregated by week, canton (26 levels), age group (40–59, 60–69, 70–79 and 80 and older) and sex.[@konstantinoudis2022regional]
+Data on ambient temperature were obtained from the ERA5 reanalysis data set of the Copernicus climate data.[@hersbach2020era5]
 
-We obtained the yearly excess mortality in 2020 at the municipal level in three steps, including computation at a higher geographic level (the canton), aggregation from week to year, and downscaling from canton to municipality. 
-In a first step, we computed estimates of expected mortality for each week of 2020 at the cantonal level using a previously validated approach [@riou2023direct]. 
-Briefly, we predicted the expected number of deaths for each week of 2020 by canton, age group and sex using a Bayesian spatio-temporal model fitted to data from the period 2011-2019. 
-This model accounted for long-term and seasonal trends in mortality, for ambient temperature, for public holidays and for changes in population size.
-In a second step, we aggregated the results from week to year. 
-In a third step, we downscaled the expected number of deaths from the cantonal to the nested municipal level (2,141 levels) by randomly sampling from a multinomial distribution with weights calculated using the observed distribution of deaths. 
-As for the other steps, this third step was repeated multiple times to ensure the propagation of all sources of uncertainty. 
-We then computed the yearly excess mortality by age, sex and municipality by substracting the expected from the observed number of deaths. 
-This approach based on cantonal estimates and downscaling was chosen because of the large computational cost of modelling population and expected deaths at the municipal level.
+We predicted the expected number of deaths for each week by canton, age group and sex using a Bayesian spatio-temporal model fitted to data from 2011-2019 as in a previous work.[@riou2023direct]
+The model accounted for long-term,  and seasonal and spatial trends in mortality, for ambient temperature, for public holidays and for changes in population size.
+Next, we aggregated the results from week to year. Last, we downscaled the expected number of deaths from the cantonal to the 2,141 Swiss municipalities by randomly sampling from a multinomial distribution with weights corresponding to the observed distribution of deaths. We then computed the yearly absolute  excess mortality by age, sex and municipality by subtracting the expected from the observed number of deaths. We averaged results over 50 posterior samples of municipality-level excess mortality to ensure uncertainty propagation.
 
-We then explored the local correlates of excess mortality at the municipal level using a model structure similar to Poisson regression, where $O_{t,i,j,k}$, the number of observed deaths during week $t$ in municipality $i$, age group $j$ and sex group $k$, depends on the number of expected deaths $E_{t,i,j,k}$ based on historical data multiplied by a log-linear predictor $\lambda = \exp(\alpha + X\beta)$ (with intercept $\alpha$, design matrix $X$ and parameter vector $\beta$).
-<!-- $$ -->
-<!-- O_i \sim \text{Poisson}(\lambda E_i). -->
-<!-- $$ -->
-During model development, we followed an iterative approach by progressively adding complexity to $\lambda$. 
-A full description is available in supplementary text S1. 
-The models included separate intercepts by age group and sex, spatial autocorrelation across municipalities based on an extension of the Besag–York–Mollié model [@riebler2016intuitive], and covariates related to each municipality: classification as rural, peri-urban or urban (as defined by the FSO); median socio-economic position (in five quintiles, based on the Swiss neighbourhood index of socio-economic position [SEP] [@panczak2023swiss]); existence of a border with another country, official language (in 3 classes: German, Italian or French) and results from the two national referendums on COVID-19 control measures held in June and November 2020 (in 5 quintiles). 
-We considered interactions between covariates and age/sex groups, but the spatial effect applied in the same way to all groups. 
-All the models were implemented in R-INLA, a Bayesian inference package that is especially adapted to spatial data [@rue2009approximate]. 
-We first focused on the median excess mortality (MEM) by municipality, ignoring the uncertainty. 
-To ensure a full propagation of the uncertainty, the final results were averaged over 50 posterior samples of municipality-level excess mortality.
+We then explored associations with relative excess mortality using a model where $O_{t,i,j,k}$, the absolute number of observed deaths during week $t$ in municipality $i$, age group $j$ and sex group $k$, depends on the absolute number of expected deaths $E_{t,i,j,k}$ based on historical data multiplied by a log-linear predictor $\lambda = \exp(\alpha + X\beta)$ (with intercept $\alpha$, design matrix $X$ and parameter vector $\beta$).
+We followed an iterative approach by progressively adding complexity to $\lambda$ (see Supplementary material). 
+The models included separate intercepts by age and sex groups, and the spatial autocorrelation across municipalities[@riebler2016intuitive].
+Covariates included language region (German, Italian or French), urbanisation level (rural, peri-urban, urban[@fsospatial]), cross-border labour market region (yes versus no[@fsospatial]), socioeconomic position (quintiles of the median Swiss neighbourhood index, which is based on rent, household head education and occupation, and crowding[@panczak2023swiss]), and results from the June referendum on the COVID-19 Act[@referendums] (quintiles of yes votes supporting control measures). 
 
 # Results
 
@@ -73,35 +69,38 @@ To ensure a full propagation of the uncertainty, the final results were averaged
 source("R/helper_functions.R")
 load("results_inla/local_corr_models.Rdata")
 model1.5_merg = readRDS("results_inla/model1.5_merg.rds")
+range_pop_obs = data1 %>% 
+  group_by(GMDNAME) %>% 
+  summarise(munici_pop=sum(munici_pop),munici_observed=sum(munici_observed))
 ```
 
-We observed a total of 74,776 all-cause deaths in people aged 40 and older in Switzerland in 2020, compared to an expected 55,676 (95% credible interval: 53,865 to 57,821). 
-This corresponds to a relative increase in excess mortality of 34% (29 to 39%) over the year. 
-Relative excess mortality varied across age groups and sex, with as expected higher estimates in older age groups and males (Supplementary text S1).
-There were large variations across geographical areas (Figure 1A), with 99% (89 to 100%) of the variability explained by spatial autocorrelation across neighboring municipalities. 
-Areas most affected by excess mortality in 2020 included Ticino (south-central), the Lake Geneva region (south-west) and the Jura (north-west). 
-Large cities of the German-speaking area (Zurich, Basel and Bern) were comparatively less affected (see interactive map in Supplementary text S1).
-Mountainous areas of Graubunden (south-east) were also less affected than Valais and Ticino (south-central). 
-There were a few outliers corresponding to sparsely-populated municipalities in the north-central area (more affected than their surroundings) and in the south-central and south-west areas (less affected than their surroundings), highlighting the stochastic nature of epidemic spread in low density areas.
+We observed 74,776 deaths in people aged 40 and older in 2020, compared to an expected 55,676 deaths (95% credible interval: 53,865 to 57,821), for a relative increase in excess mortality of 34% (29 to 39%). 
+The population and observed deaths in municipalities ranged from 19 to 197,879, and 0 to 3,507, respectively.
+Excess mortality varied across age and sex, with higher absolute  relative  excess in older age groups and men (Supplementary material).
+Areas most affected included Ticino, the Lake of Geneva region and the Jura. Cities in the German-speaking area (Zurich, Basel and Bern) and mountainous regions of the Grison were less affected than other cities and areas (Figure 1A, Supplementary material).  
 
-We explored whether the spatial variability in the median excess mortality (MEM) was associated with local characteristics. 
-In the univariable analysis (Supplementary text S1), contrary to expectations urban municipalities appeared to have -2 to -13% MEM in age groups over 60 compared to municipalities classified as rural. 
-Municipalities sharing a border with another country had between -2 and +16% MEM (depending on the age groups). 
-Municipalities of lowest median SEP (1st quintile) had +1 to +29% MEM mortality in 2020 compared to municipalities of highest median SEP (5th quintile). 
-We generally observed a gradient in the association between SEP quintiles and MEM in all age groups, although less marked in people aged 80 and older. 
-Although high uncertainty remains, municipalities expressing the lowest support to control measures in the June and November referendums (1st quantile) had +1 to +8% MEM in age group 80+ compared to municipalities with highest support (5th quintile), also with a gradient in this age group. 
-The association with language regions was more ambiguous. 
-We estimated -2 to +18% MEM in French-speaking and +7 to +42% MEM in Italian-speaking compared to German-speaking municipalities across all age groups, but this association is likely confounded by the initial international spread of SARS-CoV-2 in 2020 (that started in Italian-speaking Ticino and the French-speaking south-west). 
-<!-- Indeed, looking at the municipality-specific effects shows that French-speaking areas that were less affected initially (such as Neuchâtel and Jura, west) have a negative residual effect to compensate.  -->
-The association with language is thus better assessed through the spatial variability rather than a fixed effect of language at the municipality level. 
-The neat separation between the French-speaking and German-speaking municipalities around canton Fribourg suggested low levels of interconnection across these populations (Supplementary text S1).
+In univariable analysis, municipalities in Italian- (1.17; 95% CrI 1.2212-1.22) and French-speaking regions (1.09; 95% CrI 1.07-1.12) had higher excess mortality than the German-speaking regions (Figure 1B ). Urban (relative   excess mortality 0.94; 95% CrI 0.92-0.96), and semiperi-urban (0.97; 95% CrI 0.94-0.99) areas had lower excess than rural areas whereas municipalities with close to  international borders were more affected (1.04; 95% CrI 1.01-1.07). Excess mortality was higher in municipalities of lower socioeconomic position (1.07; 95% CrI 1.04-1.11 comparing first with fifth quintile) and higher in municipalities with less support for COVID-19 control measures (1.05; 95% CrI 1.01-1.08 comparing first with fifth quintile of yes votes). 
 
-The multivariable model including rural/urban status, border, median SEP and results from the first COVID-19 referendum confirmed the association with SEP quintiles in age groups below 80, with a clear gradient, and the association with rural/urban status and international borders. 
-The association between MEM and results from the June COVID-19 referendum strongly decreased, likely because of collinearity with SEP (Supplementary text S1). 
-When the multivariable model was applied to a set of posterior samples of excess mortality by municipality rather than the MEM, allowing for a full propagation of uncertainty, the results became more undecided, with all estimates compatible with no association (Figure 1B). 
-Still, there remained a gradient in the association between SEP quintiles and excess mortality in age groups below 80, although with high uncertainty.
-Similarly, most spatial patterns persisted with higher uncertainty. 
-In addition to the already-mentioned patterns, the map of municipality-specific effects adjusted for the covariates brought out an area of comparatively higher excess mortality in the north-east, that could not be observed on the unadjusted map. 
+A multivariable model including urbanisation, proximity to international borders status, socioeconomic position and the COVID-19 referendum results   was used to produce a map that adjusted for these variables (Figure 1C). In addition to the patterns seen on the crude map, the adjusted map included an area of comparatively higher excess mortality in the Northeast of the country.
+
+
+<!-- In the univariable analysis (Supplementary text S1), contrary to expectations urban municipalities appeared to have -2 to -13% MEM in age groups over 60 compared to municipalities classified as rural.  -->
+<!-- Municipalities sharing a border with another country had between -2 and +16% MEM (depending on the age groups).  -->
+<!-- Municipalities of lowest median SEP (1st quintile) had +1 to +29% MEM mortality in 2020 compared to municipalities of highest median SEP (5th quintile).  -->
+<!-- We generally observed a gradient in the association between SEP quintiles and MEM in all age groups, although less marked in people aged 80 and older.  -->
+<!-- Although high uncertainty remains, municipalities expressing the lowest support to control measures in the June and November referendums (1st quantile) had +1 to +8% MEM in age group 80+ compared to municipalities with highest support (5th quintile), also with a gradient in this age group.  -->
+<!-- The association with language regions was more ambiguous.  -->
+<!-- We estimated -2 to +18% MEM in French-speaking and +7 to +42% MEM in Italian-speaking compared to German-speaking municipalities across all age groups, but this association is likely confounded by the initial international spread of SARS-CoV-2 in 2020 (that started in Italian-speaking Ticino and the French-speaking south-west).  -->
+<!-- <!-- Indeed, looking at the municipality-specific effects shows that French-speaking areas that were less affected initially (such as Neuchâtel and Jura, west) have a negative residual effect to compensate.  --> -->
+<!-- The association with language is thus better assessed through the spatial variability rather than a fixed effect of language at the municipality level.  -->
+<!-- The neat separation between the French-speaking and German-speaking municipalities around canton Fribourg suggested low levels of interconnection across these populations (Supplementary text S1). -->
+
+<!-- The multivariable model including rural/urban status, border, median SEP and results from the first COVID-19 referendum confirmed the association with SEP quintiles in age groups below 80, with a clear gradient, and the association with rural/urban status and international borders.  -->
+<!-- The association between MEM and results from the June COVID-19 referendum strongly decreased, likely because of collinearity with SEP (Supplementary text S1).  -->
+<!-- When the multivariable model was applied to a set of posterior samples of excess mortality by municipality rather than the MEM, allowing for a full propagation of uncertainty, the results became more undecided, with all estimates compatible with no association (Figure 1B).  -->
+<!-- Still, there remained a gradient in the association between SEP quintiles and excess mortality in age groups below 80, although with high uncertainty. -->
+<!-- Similarly, most spatial patterns persisted with higher uncertainty.  -->
+<!-- In addition to the already-mentioned patterns, the map of municipality-specific effects adjusted for the covariates brought out an area of comparatively higher excess mortality in the north-east, that could not be observed on the unadjusted map.  -->
 
 ```{r, echo=FALSE, fig.height=12.5,fig.width=9.5,fig.cap="(A) Municipality-specific relative excess mortality in 2020. (B) Local correlates of excess mortality at the municipality level in 2020. (B) Municipality-specific relative excess mortality in 2020 adjusted for aforementioned covariates."}
 g0 = map_munic_final(model1.3,data1,shap)
@@ -112,24 +111,14 @@ cowplot::plot_grid(g0,g2,g1,labels=c("A","B","C"), nrow=3, rel_heights = c(1,.8,
 
 # Discussion
 
-In this work, we created a high-resolution mapping of the excess mortality in Switzerland in 2020, mostly attributable to COVID-19, for the first time at the municipality level.
-We also proposed an approach to adjust for local characteristics, allowing to explore associations and to observe spatial patterns after accounting for known drivers of COVID-19 mortality.
-We confirmed known facts about highly-affected areas in the south and south-west, and brought new insights about areas in the north-west and north-east that were comparatively more affected than their surroundings. 
-We also report lower impacts in large cities away from the initial epidemic centers such as Basel, that persisted after adjustment for SEP and support to control measures (that could considered to be a proxy for adherence to control measures). 
-These could be explained by other aspects such as lower household sizes or behavioral differences.
-We also highlight the lower impacts of COVID-19 in some mountainous areas.
-Besides providing improved estimates and a more detailed picture of the course of the pandemic in Switzerland in 2020, this work brings valuable lessons regarding potential pitfalls in ecological analyses of excess mortality.
-The first lesson is that in this type of studies, where the dependent variable is itself model-predicted, it is absolutely crucial to propagate all sources of uncertainty in the final results.
-Failing to do so, as we did when we focused on median excess mortality by municipality, led to severely underestimating the uncertainty around the estimates.
-Indeed, while the gradient of association between SEP and excess and thus COVID-19 mortality has been shown in several other studies [@brandily2021poorly][@riou2021socioeconomic], this study does not bring clear evidence in favor of this association. 
-Second, as for many other approaches, the results rely upon appropriate adjustment on relevant covariates.
-A typical example of this is given by the positive association between median excess mortality and a lack of support of control measures as expressed by the results of the referendums found in the univariable analysis, which appears to be confounded by the SEP, likely because of collinearity.
-Of course, collinearity implies that both SEP and voting results are measuring a similar phenomenon, and we are far removed from any attempt at causal inference, so this could be considered as unimpactful.
-The third lesson is that it is central to consider the underlying mechanisms leading to the excess mortality. 
-Assuming that most of the excess mortality in 2020 can be attributed to COVID-19, the initial international spread of the disease from China to Europe played a key role in determining which areas ended up being the most affected.
-The early epidemic in northern Italy and then France led to early introductions in south and south-west Switzerland, and this head start led to higher excess mortality in these areas, that happened to be in majority Italian- and French-speaking.
-Careless interpretations could (and did) attribute this higher toll to cultural differences, while it is the stochastic spread of the underlying cause of the excess (COVID-19) that is ultimately responsible.
-Still, the neat separation observed between French- and German-speaking areas could be partially attributed to language, not through differential susceptibility to infection but rather through low interconnection between these populations.
+This study mapped the 2020 COVID-19 excess mortality in Switzerland for 2,141 municipalities. We confirmed that areas in the Ticino and the Romandie had higher excess mortality than other regions. We identified regions in the Jura and the Northeast that were more affected than their surroundings and found that the cities in the German-speaking region of the country were impacted less than those in the other language regions. Several municipality-level characteristics were associated with excess mortality in univariable analyses. Urban and semi-urban municipalities were less affected than rural areas, and municipalities sharing international borders, of lower socioeconomic position and with lower support for COVID-19 control measures experienced higher excess mortality. 
+
+In Switzerland’s direct democracy, citizens can initiate referenda on various issues. During the pandemic, there were vigorous debates on COVID-19 restrictions, such as lockdowns, mask mandates, and vaccination campaigns. The COVID-19 Act,[@referendums] which came into force in September 2020 and regulates special powers of the Federal Council to combat COVID-19, was put to a referendum in June 2021. The Swiss thus became the only people in the world voting on public health measures to control COVID-19. The Act was accepted overall with a majority of 60%, but support for the COVID-19 control measures was lower in rural areas and municipalities of lower socioeconomic position. 
+
+The present study found that lower support for the COVID-19 Act was also associated with greater excess mortality in 2020. The ecological nature of the explanatory variables analysed and the collinearity between some of these variables precludes causal interpretation. Nevertheless, the higher excess mortality in municipalities of lower socioeconomic position is supported by an individual-level analysis of the COVID-19 epidemic in Switzerland 2020-2021, which showed that people living in areas of lower socioeconomic position were less likely to get tested but more likely to test positive for COVID-19, admitted to hospital and die compared with those living in areas of higher socioeconomic position.[@riou2021socioeconomic] The association became stronger along the care continuum, from test positivity to hospitalisation and death. The greater excess mortality in areas of lower socioeconomic position and rural areas might reflect higher risks of SARS-CoV-2 infection at work and home, with more unprotected contact with others. The more negative attitude towards COVID-19 control measures may also have played a role. 
+
+The international spread of COVID-19 will have affected the geographical patterns observed in our study. The early epidemic in northern Italy and then France led to introductions in south and south-west Switzerland, which probably explains the higher excess mortality in the Italian- and French-speaking regions compared to German-speaking Switzerland . Cultural differences between the language reasonsregions, which some commentators and media outlets put forward at the time, probably played a minor role. 
+Strengths of this study include the national coverage and completeness of the mortality data. Another strength is using the recently updated Swiss neighbourhood index of socioeconomic position, which has criterion validity and is based on data from more than 1 million households.10 In conclusion, public health interventions targeted at vulnerable municipalities, including testing and vaccination campaigns, could mitigate the impact in these areas in future pandemics .
 
 
 # Acknowledgements
