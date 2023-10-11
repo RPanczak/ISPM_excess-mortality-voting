@@ -29,6 +29,7 @@ exp_deaths_2020_year = exp_deaths_2020_year %>%
          age_70s=ifelse(age_group=="70-79",1,0),
          age_80s=ifelse(age_group=="80+",1,0),
          type_urban=ifelse(r_urban1=="Urban",1,0),
+         type_periurban=ifelse(r_urban1=="Periurban",1,0),
          type_rural=ifelse(r_urban1=="Rural",1,0),
          density_high=ifelse(r_urban2=="Dense",1,0),
          density_low=ifelse(r_urban2=="Low",1,0),
@@ -58,7 +59,7 @@ hyper.bym2 = list(theta1 = list("PCprior", c(1, 0.01)),
 threads = parallel::detectCores()
 
 # iterate
-if(FALSE) {
+if(TRUE) {
   n_iter = 50
   s_iter = sample(unique(exp_deaths_2020_year$it),size=n_iter)
   model1.5_full = list()
@@ -69,10 +70,10 @@ if(FALSE) {
                                       sex:age_group +
                                       f(id_space, model = "bym2", graph = "data/nb/gg_wm_q.adj", scale.model = TRUE, 
                                         hyper = hyper.bym2, constr=TRUE) +
-                                      age_group:border +
-                                      age_group:type_rural + age_group:type_urban +
-                                      age_group:sep1 + age_group:sep2 + age_group:sep3 + age_group:sep4 +
-                                      age_group:vote_jun_q1 + age_group:vote_jun_q2 + age_group:vote_jun_q3 + age_group:vote_jun_q4,
+                                      border +
+                                      type_periurban + type_urban +
+                                      sep1 + sep2 + sep3 + sep4 +
+                                      vote_jun_q1 + vote_jun_q2 + vote_jun_q3 + vote_jun_q4,
                                     data = data_it,
                                     family = "Poisson",
                                     control.compute = list(config = TRUE, waic = TRUE),
@@ -85,7 +86,7 @@ if(FALSE) {
 }
 
 # merge
-if(FALSE) {
+if(TRUE) {
   model1.5_full = readRDS("results_inla/model1.5_full.rds")
   model1.5_merg = inla.merge(loo=model1.5_full)
   saveRDS(model1.5_merg,file="results_inla/model1.5_merg.rds")
