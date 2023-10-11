@@ -101,7 +101,32 @@ if(FALSE) {
   drivers_plot_age(model1.5_merg,data1)
   
   map_munic(model1.5_merg,data1,shap)
-}
+  
+  post_samples = list()
+  for(i in 1:50) {
+    tmp = INLA::inla.posterior.sample(n=10,
+                                      model1.5_full[[i]],
+                                      selection=list(border=1,
+                                                     type_periurban=1,
+                                                     type_urban=1,
+                                                     sep1=1,
+                                                     sep2=1,
+                                                     sep3=1,
+                                                     sep4=1,
+                                                     vote_jun_q1=1,
+                                                     vote_jun_q2=1,
+                                                     vote_jun_q3=1,
+                                                     vote_jun_q4=1))
+    post_samples[[i]] = do.call("cbind",lapply(tmp,function(x) x$latent))
+  }
+  
+  post_samples_all = do.call("cbind",post_samples)
+  
+  qsum = function(x) quantile(x,probs=c(.5,.025,.975))
+  (post_samples_all) %>% 
+    apply(.,1,qsum) 
+} 
+
 
 
 

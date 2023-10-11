@@ -317,8 +317,163 @@ drivers_plot = function(mod,dat,compute_cri=FALSE) {
   
   return(g1)
 }
+# 
+# drivers_plot_age = function(mod,dat,compute_cri=FALSE) {
+#   nn = tibble(
+#     rowname=c("density_high","density_low",
+#               "type_rural","type_urban","type_periurban",
+#               "sep1","sep2","sep3","sep4","sep5",
+#               "border",
+#               "lang_fr","lang_it",
+#               "vote_jun_q1","vote_jun_q2","vote_jun_q3","vote_jun_q4","vote_jun_q5",
+#               "vote_nov_q1","vote_nov_q2","vote_nov_q3","vote_nov_q4","vote_nov_q5"),
+#     type=c(rep("Pop. density (ref: medium)",2),
+#            rep("Urban/rural (ref: rural)",3),
+#            rep("Quintile of SEP (ref: Q5)",5),
+#            rep("Geography"),
+#            rep("Language region (ref: German)",2),
+#            rep("June referendum (ref: Q5)",5),
+#            rep("November referendum (ref: Q5)",5)),
+#     lab=c("High population density","Low population density",
+#           "Rural","Urban","Peri-urban",
+#           "SEP Q1","SEP Q2","SEP Q3","SEP Q4","SEP Q5",
+#           "International border",
+#           "French","Italian",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5"
+#     ))
+#   if(compute_cri) {
+#     nn = tibble(
+#       rowname=c("density_high","density_low",
+#                 "type_rural","type_urban",
+#                 "sep1","sep2","sep3","sep4","sep5",
+#                 "border",
+#                 "lang_fr","lang_it",
+#                 "vote_jun_q1","vote_jun_q2","vote_jun_q3","vote_jun_q4","vote_jun_q5",
+#                 "vote_nov_q1","vote_nov_q2","vote_nov_q3","vote_nov_q4","vote_nov_q5"),
+#       type=c(rep("Pop. density (ref: medium)",2),
+#              rep("Urban/rural (ref: rural)",2),
+#              rep("Quintile of SEP (ref: Q5)",5),
+#              rep("Geography"),
+#              rep("Language region (ref: German)",2),
+#              rep("June referendum (ref: Q5)",5),
+#              rep("November referendum (ref: Q5)",5)),
+#       lab=c("High population density","Low population density",
+#             "Rural","Urban",
+#             "SEP Q1","SEP Q2","SEP Q3","SEP Q4","SEP Q5",
+#             "International border",
+#             "French","Italian",
+#             "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5",
+#             "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5"
+#       ))
+#   }
+#   mm = tibble(
+#     strata=c("age_group40-59","age_group60-69","age_group70-79","age_group80+"),
+#     age=c("40-59","60-69","70-79","80+")
+#   )
+#   if(compute_cri) {
+#     tt = mod$summary.fixed %>% 
+#       tibble::rownames_to_column() %>% 
+#       as_tibble() %>% 
+#       tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
+#       left_join(nn,by = join_by(rowname)) %>% 
+#       mutate(age=gsub("age_group","",age)) %>% 
+#       filter(!is.na(lab)) %>% 
+#       mutate(`0.025quant`=exp(mean-1.96*sd),
+#              `0.975quant`=exp(mean+1.96*sd),
+#              mean=exp(mean))
+#   } else {
+#     tt = exp(mod$summary.fixed) %>% 
+#       tibble::rownames_to_column() %>% 
+#       as_tibble() %>% 
+#       tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
+#       left_join(nn,by = join_by(rowname)) %>% 
+#       mutate(age=gsub("age_group","",age)) %>% 
+#       filter(!is.na(lab))
+#   }
+#   g1 = tt %>% 
+#     ggplot() +
+#     geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=age),
+#                     position=position_dodge(.4)) +
+#     geom_hline(yintercept=1,linetype=2) +
+#     labs(y="Relative excess mortality",x=NULL) +
+#     theme(axis.text.x=element_text(angle=45,hjust=1),
+#           legend.position=c(.77,.87),
+#           legend.background = element_blank(),
+#           legend.direction="horizontal") +
+#     facet_grid(~type,scales="free_x",space="free") +
+#     labs(y="Relative excess mortality",title="Association with relative excess mortality",colour=NULL) 
+#   
+#   return(g1)
+# }
+# 
+# drivers_plot_age_final = function(mod,dat,compute_cri=FALSE) {
+#   nn = tibble(
+#     rowname=c("density_high","density_low",
+#               "type_rural","type_urban",
+#               "sep1","sep2","sep3","sep4","sep5",
+#               "border",
+#               "lang_fr","lang_it",
+#               "vote_jun_q1","vote_jun_q2","vote_jun_q3","vote_jun_q4","vote_jun_q5",
+#               "vote_nov_q1","vote_nov_q2","vote_nov_q3","vote_nov_q4","vote_nov_q5"),
+#     type=c(rep("Pop. density (ref: medium)",2),
+#            rep("Urban/rural (ref: peri-urban)",2),
+#            rep("Quintile of SEP (ref: Q5)",5),
+#            rep("Geography"),
+#            rep("Language region (ref: German)",2),
+#            rep("June referendum (ref: Q5)",5),
+#            rep("November referendum (ref: Q5)",5)),
+#     lab=c("High population density","Low population density",
+#           "Rural","Urban",
+#           "SEP Q1","SEP Q2","SEP Q3","SEP Q4","SEP Q5",
+#           "International border",
+#           "French","Italian",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5"
+#     ))
+#   order_type = levels(factor(nn$type))[c(7,6,1,2,4,3,5)]
+#   mm = tibble(
+#     strata=c("age_group40-59","age_group60-69","age_group70-79","age_group80+"),
+#     age=c("40-59","60-69","70-79","80+")
+#   )
+#   if(compute_cri) {
+#     tt = mod$summary.fixed %>% 
+#       tibble::rownames_to_column() %>% 
+#       as_tibble() %>% 
+#       tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
+#       left_join(nn,by = join_by(rowname)) %>% 
+#       mutate(age=gsub("age_group","",age)) %>% 
+#       filter(!is.na(lab)) %>% 
+#       mutate(`0.025quant`=exp(mean-1.96*sd),
+#              `0.975quant`=exp(mean+1.96*sd),
+#              mean=exp(mean))
+#   } else {
+#     tt = exp(mod$summary.fixed) %>% 
+#       tibble::rownames_to_column() %>% 
+#       as_tibble() %>% 
+#       tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
+#       left_join(nn,by = join_by(rowname)) %>% 
+#       mutate(age=gsub("age_group","",age)) %>% 
+#       filter(!is.na(lab))
+#   }
+#   g1 = tt %>% 
+#     mutate(type=factor(type,levels=order_type)) %>% 
+#     ggplot() +
+#     geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=age),
+#                     position=position_dodge(.4)) +
+#     geom_hline(yintercept=1,linetype=2) +
+#     labs(y="Relative excess mortality",x=NULL) +
+#     theme(axis.text.x=element_text(angle=45,hjust=1),
+#           legend.position=c(.82,.87),
+#           legend.background = element_blank(),
+#           legend.direction="horizontal") +
+#     facet_grid(~type,scales="free_x",space="free") +
+#     labs(y="Relative excess mortality",colour=NULL) 
+#   
+#   return(g1)
+# }
 
-drivers_plot_age = function(mod,dat,compute_cri=FALSE) {
+drivers_plot_final = function(mod1,mod2,mod3,mod4,modf,dat) {
   nn = tibble(
     rowname=c("density_high","density_low",
               "type_rural","type_urban","type_periurban",
@@ -342,212 +497,61 @@ drivers_plot_age = function(mod,dat,compute_cri=FALSE) {
           "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5",
           "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5"
     ))
-  if(compute_cri) {
-    nn = tibble(
-      rowname=c("density_high","density_low",
-                "type_rural","type_urban",
-                "sep1","sep2","sep3","sep4","sep5",
-                "border",
-                "lang_fr","lang_it",
-                "vote_jun_q1","vote_jun_q2","vote_jun_q3","vote_jun_q4","vote_jun_q5",
-                "vote_nov_q1","vote_nov_q2","vote_nov_q3","vote_nov_q4","vote_nov_q5"),
-      type=c(rep("Pop. density (ref: medium)",2),
-             rep("Urban/rural (ref: rural)",2),
-             rep("Quintile of SEP (ref: Q5)",5),
-             rep("Geography"),
-             rep("Language region (ref: German)",2),
-             rep("June referendum (ref: Q5)",5),
-             rep("November referendum (ref: Q5)",5)),
-      lab=c("High population density","Low population density",
-            "Rural","Urban",
-            "SEP Q1","SEP Q2","SEP Q3","SEP Q4","SEP Q5",
-            "International border",
-            "French","Italian",
-            "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5",
-            "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5"
-      ))
-  }
-  mm = tibble(
-    strata=c("age_group40-59","age_group60-69","age_group70-79","age_group80+"),
-    age=c("40-59","60-69","70-79","80+")
-  )
-  if(compute_cri) {
-    tt = mod$summary.fixed %>% 
-      tibble::rownames_to_column() %>% 
-      as_tibble() %>% 
-      tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
-      left_join(nn,by = join_by(rowname)) %>% 
-      mutate(age=gsub("age_group","",age)) %>% 
-      filter(!is.na(lab)) %>% 
-      mutate(`0.025quant`=exp(mean-1.96*sd),
-             `0.975quant`=exp(mean+1.96*sd),
-             mean=exp(mean))
-  } else {
-    tt = exp(mod$summary.fixed) %>% 
-      tibble::rownames_to_column() %>% 
-      as_tibble() %>% 
-      tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
-      left_join(nn,by = join_by(rowname)) %>% 
-      mutate(age=gsub("age_group","",age)) %>% 
-      filter(!is.na(lab))
-  }
-  g1 = tt %>% 
-    ggplot() +
-    geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=age),
-                    position=position_dodge(.4)) +
-    geom_hline(yintercept=1,linetype=2) +
-    labs(y="Relative excess mortality",x=NULL) +
-    theme(axis.text.x=element_text(angle=45,hjust=1),
-          legend.position=c(.77,.87),
-          legend.background = element_blank(),
-          legend.direction="horizontal") +
-    facet_grid(~type,scales="free_x",space="free") +
-    labs(y="Relative excess mortality",title="Association with relative excess mortality",colour=NULL) 
-  
-  return(g1)
-}
-
-drivers_plot_age_final = function(mod,dat,compute_cri=FALSE) {
-  nn = tibble(
-    rowname=c("density_high","density_low",
-              "type_rural","type_urban",
-              "sep1","sep2","sep3","sep4","sep5",
-              "border",
-              "lang_fr","lang_it",
-              "vote_jun_q1","vote_jun_q2","vote_jun_q3","vote_jun_q4","vote_jun_q5",
-              "vote_nov_q1","vote_nov_q2","vote_nov_q3","vote_nov_q4","vote_nov_q5"),
-    type=c(rep("Pop. density (ref: medium)",2),
-           rep("Urban/rural (ref: peri-urban)",2),
-           rep("Quintile of SEP (ref: Q5)",5),
-           rep("Geography"),
-           rep("Language region (ref: German)",2),
-           rep("June referendum (ref: Q5)",5),
-           rep("November referendum (ref: Q5)",5)),
-    lab=c("High population density","Low population density",
-          "Rural","Urban",
-          "SEP Q1","SEP Q2","SEP Q3","SEP Q4","SEP Q5",
-          "International border",
-          "French","Italian",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q3","Vote yes Q4","Vote yes Q5"
-    ))
-  order_type = levels(factor(nn$type))[c(7,6,1,2,4,3,5)]
-  mm = tibble(
-    strata=c("age_group40-59","age_group60-69","age_group70-79","age_group80+"),
-    age=c("40-59","60-69","70-79","80+")
-  )
-  if(compute_cri) {
-    tt = mod$summary.fixed %>% 
-      tibble::rownames_to_column() %>% 
-      as_tibble() %>% 
-      tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
-      left_join(nn,by = join_by(rowname)) %>% 
-      mutate(age=gsub("age_group","",age)) %>% 
-      filter(!is.na(lab)) %>% 
-      mutate(`0.025quant`=exp(mean-1.96*sd),
-             `0.975quant`=exp(mean+1.96*sd),
-             mean=exp(mean))
-  } else {
-    tt = exp(mod$summary.fixed) %>% 
-      tibble::rownames_to_column() %>% 
-      as_tibble() %>% 
-      tidyr::separate(rowname,sep=":",into=c("age","rowname")) %>% 
-      left_join(nn,by = join_by(rowname)) %>% 
-      mutate(age=gsub("age_group","",age)) %>% 
-      filter(!is.na(lab))
-  }
-  g1 = tt %>% 
-    mutate(type=factor(type,levels=order_type)) %>% 
-    ggplot() +
-    geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=age),
-                    position=position_dodge(.4)) +
-    geom_hline(yintercept=1,linetype=2) +
-    labs(y="Relative excess mortality",x=NULL) +
-    theme(axis.text.x=element_text(angle=45,hjust=1),
-          legend.position=c(.82,.87),
-          legend.background = element_blank(),
-          legend.direction="horizontal") +
-    facet_grid(~type,scales="free_x",space="free") +
-    labs(y="Relative excess mortality",colour=NULL) 
-  
-  return(g1)
-}
-
-drivers_plot_final = function(mod1,mod2,mod3,mod4,dat) {
-  nn = tibble(
-    rowname=c("density_high","density_low",
-              "type_rural","type_urban",
-              "sep1","sep2","sep4","sep5",
-              "border",
-              "lang_fr","lang_it",
-              "vote_jun_q1","vote_jun_q2","vote_jun_q4","vote_jun_q5",
-              "vote_nov_q1","vote_nov_q2","vote_nov_q4","vote_nov_q5"),
-    type=c(rep("Pop. density (ref: medium)",2),
-           rep("Urban or rural (ref: intermediate)",2),
-           rep("Quintile of SEP (ref: Q3)",4),
-           rep("Geography"),
-           rep("Language region (ref: German)",2),
-           rep("June referendum (ref: Q3)",4),
-           rep("November referendum (ref: Q3)",4)),
-    lab=c("High population density","Low population density",
-          "Rural","Urban",
-          "SEP Q1","SEP Q2","SEP Q4","SEP Q5",
-          "International border",
-          "French","Italian",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5"
-    ))
-  tt = mod1$summary.fixed %>% 
-    mutate(`0.025quant`=exp(mean-1.96*sd),
-           `0.975quant`=exp(mean+1.96*sd),
-           mean=exp(mean)) %>% 
+  tt = exp(mod1$summary.fixed) %>% 
     tibble::rownames_to_column() %>% 
     as_tibble() %>% 
     left_join(nn,by = join_by(rowname)) %>% 
     filter(!is.na(lab)) %>% 
-    mutate(model="Final model")
+    mutate(model="Univariable")
   
-  tt2 = exp(mod2$summary.fixed) %>% 
+  tt = exp(mod2$summary.fixed) %>% 
     tibble::rownames_to_column() %>% 
     as_tibble() %>% 
     left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab),
-           grepl("lang",rowname))  %>% 
-    mutate(model="Additional covariates")
+    filter(!is.na(lab)) %>% 
+    mutate(model="Univariable") %>% 
+    bind_rows(tt)
   
-  tt3 = exp(mod3$summary.fixed) %>% 
+  tt = exp(mod3$summary.fixed) %>% 
     tibble::rownames_to_column() %>% 
     as_tibble() %>% 
     left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab),
-           grepl("vote",rowname))  %>% 
-    mutate(model="Additional covariates")
+    filter(!is.na(lab)) %>% 
+    mutate(model="Univariable") %>% 
+    bind_rows(tt)
   
-  tt4 = exp(mod4$summary.fixed) %>% 
+  tt = exp(mod4$summary.fixed) %>% 
     tibble::rownames_to_column() %>% 
     as_tibble() %>% 
     left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab),
-           grepl("vote",rowname))  %>% 
-    mutate(model="Additional covariates")
+    filter(!is.na(lab)) %>% 
+    mutate(model="Univariable") %>% 
+    bind_rows(tt)
   
-  tt_f = bind_rows(tt,tt2,tt3,tt4)
+  tt = exp(modf$summary.fixed) %>% 
+    tibble::rownames_to_column() %>% 
+    as_tibble() %>% 
+    left_join(nn,by = join_by(rowname)) %>% 
+    filter(!is.na(lab)) %>% 
+    mutate(model="Multivariable") %>% 
+    bind_rows(tt)
   
-  type_order = unique(tt_f$type)
-  tt_f2 = tt_f %>% 
+  type_order = unique(tt$type)
+  tt2 = tt %>% 
     mutate(type2=factor(type,levels=type_order),
-           model2=factor(model,levels=c("Final model","Additional covariates")))
+           model2=factor(model,levels=c("Univariable","Multivariable")))
   
-  g1 = tt_f2 %>% 
+  g1 = tt2 %>% 
     ggplot() +
     geom_hline(yintercept=1,linetype=2) +
-    geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=model2,shape=model2),fill="white") +
+    geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=model2,shape=model2),
+                    fill="white",position=position_dodge(.3)) +
     labs(y="Relative excess mortality",x=NULL) +
-    scale_colour_manual(values=c("dodgerblue","orange")) +
+    scale_colour_manual(values=c("dodgerblue","orange","forestgreen")) +
     # scale_y_log10(limits=c(.9,1.25)) +
-    scale_shape_manual(values=c(21,22)) +
+    scale_shape_manual(values=c(21,22,23)) +
     theme(axis.text.x=element_text(angle=45,hjust=1),
-          legend.position=c(.89,.8),
+          legend.position=c(.89,.86),
           legend.background =element_blank(),
           strip.text = element_text(size=6.5)) +
     facet_grid(~type2,scales="free_x",space="free") +
@@ -555,131 +559,131 @@ drivers_plot_final = function(mod1,mod2,mod3,mod4,dat) {
   
   return(g1)
 }
-
-drivers_plot_final_agestrat = function(mod1,mod2,mod3,mod4,dat) {
-  nn = tibble(
-    rowname=c("density_high","density_low",
-              "type_rural","type_urban",
-              "sep1","sep2","sep4","sep5",
-              "border",
-              "lang_fr","lang_it",
-              "vote_jun_q1","vote_jun_q2","vote_jun_q4","vote_jun_q5",
-              "vote_nov_q1","vote_nov_q2","vote_nov_q4","vote_nov_q5"),
-    type=c(rep("Pop. density (ref: medium)",2),
-           rep("Urban or rural (ref: intermediate)",2),
-           rep("Quintile of SEP (ref: Q3)",4),
-           rep("Geography"),
-           rep("Language region (ref: German)",2),
-           rep("June referendum (ref: Q3)",4),
-           rep("November referendum (ref: Q3)",4)),
-    lab=c("High population density","Low population density",
-          "Rural","Urban",
-          "SEP Q1","SEP Q2","SEP Q4","SEP Q5",
-          "International border",
-          "French","Italian",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5"
-    ))
-  tt = mod1$summary.fixed %>% 
-    mutate(`0.025quant`=exp(mean-1.96*sd),
-           `0.975quant`=exp(mean+1.96*sd),
-           mean=exp(mean)) %>% 
-    tibble::rownames_to_column() %>% 
-    as_tibble() %>% 
-    left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab)) %>% 
-    mutate(model="Final model")
-  
-  tt2 = exp(mod2$summary.fixed) %>% 
-    tibble::rownames_to_column() %>% 
-    as_tibble() %>% 
-    left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab),
-           grepl("lang",rowname))  %>% 
-    mutate(model="Additional covariates")
-  
-  tt3 = exp(mod3$summary.fixed) %>% 
-    tibble::rownames_to_column() %>% 
-    as_tibble() %>% 
-    left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab),
-           grepl("vote",rowname))  %>% 
-    mutate(model="Additional covariates")
-  
-  tt4 = exp(mod4$summary.fixed) %>% 
-    tibble::rownames_to_column() %>% 
-    as_tibble() %>% 
-    left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab),
-           grepl("vote",rowname))  %>% 
-    mutate(model="Additional covariates")
-  
-  tt_f = bind_rows(tt,tt2,tt3,tt4)
-  
-  type_order = unique(tt_f$type)
-  tt_f2 = tt_f %>% 
-    mutate(type2=factor(type,levels=type_order),
-           model2=factor(model,levels=c("Final model","Additional covariates")))
-  
-  g1 = tt_f2 %>% 
-    ggplot() +
-    geom_hline(yintercept=1,linetype=2) +
-    geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=model2,shape=model2),fill="white") +
-    labs(y="Relative excess mortality",x=NULL) +
-    scale_colour_manual(values=c("dodgerblue","orange")) +
-    # scale_y_log10(limits=c(.9,1.25)) +
-    scale_shape_manual(values=c(21,22)) +
-    theme(axis.text.x=element_text(angle=45,hjust=1),
-          legend.position=c(.89,.8),
-          legend.background =element_blank(),
-          strip.text = element_text(size=6.5)) +
-    facet_grid(~type2,scales="free_x",space="free") +
-    labs(y="Relative excess mortality",colour=NULL,shape=NULL,alpha=NULL) 
-  
-  return(g1)
-}
-
-drivers_plot2 = function(mod,dat) {
-  nn = tibble(
-    rowname=c("density_high","density_low",
-              "type_rural","type_urban",
-              "sep1","sep2","sep4","sep5",
-              "border",
-              "lang_fr","lang_it",
-              "vote_jun_q1","vote_jun_q2","vote_jun_q4","vote_jun_q5",
-              "vote_nov_q1","vote_nov_q2","vote_nov_q4","vote_nov_q5"),
-    type=c(rep("Pop. density (ref: medium)",2),
-           rep("Urban or rural (ref: intermediate)",2),
-           rep("Quintile of SEP (ref: Q3)",4),
-           rep("Geography"),
-           rep("Language region (ref: German)",2),
-           rep("June referendum (ref: Q3)",4),
-           rep("November referendum (ref: Q3)",4)),
-    lab=c("High population density","Low population density",
-          "Rural","Urban",
-          "SEP Q1","SEP Q2","SEP Q4","SEP Q5",
-          "International border",
-          "French","Italian",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5",
-          "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5"
-    ))
-  tt = exp(mod$summary.fixed) %>% 
-    tibble::rownames_to_column() %>% 
-    as_tibble() %>% 
-    left_join(nn,by = join_by(rowname)) %>% 
-    filter(!is.na(lab))
-  
-  g1 = tt %>% 
-    ggplot() +
-    geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`)) +
-    geom_hline(yintercept=1,linetype=2) +
-    labs(y="Relative excess mortality",x=NULL) +
-    theme(axis.text.x=element_text(angle=45,hjust=1)) +
-    facet_grid(~type,scales="free_x",space="free") +
-    labs(x="Relative excess mortality",title="Association with relative excess mortality") 
-  
-  return(g1)
-}
+# 
+# drivers_plot_final_agestrat = function(mod1,mod2,mod3,mod4,dat) {
+#   nn = tibble(
+#     rowname=c("density_high","density_low",
+#               "type_rural","type_urban",
+#               "sep1","sep2","sep4","sep5",
+#               "border",
+#               "lang_fr","lang_it",
+#               "vote_jun_q1","vote_jun_q2","vote_jun_q4","vote_jun_q5",
+#               "vote_nov_q1","vote_nov_q2","vote_nov_q4","vote_nov_q5"),
+#     type=c(rep("Pop. density (ref: medium)",2),
+#            rep("Urban or rural (ref: intermediate)",2),
+#            rep("Quintile of SEP (ref: Q3)",4),
+#            rep("Geography"),
+#            rep("Language region (ref: German)",2),
+#            rep("June referendum (ref: Q3)",4),
+#            rep("November referendum (ref: Q3)",4)),
+#     lab=c("High population density","Low population density",
+#           "Rural","Urban",
+#           "SEP Q1","SEP Q2","SEP Q4","SEP Q5",
+#           "International border",
+#           "French","Italian",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5"
+#     ))
+#   tt = mod1$summary.fixed %>% 
+#     mutate(`0.025quant`=exp(mean-1.96*sd),
+#            `0.975quant`=exp(mean+1.96*sd),
+#            mean=exp(mean)) %>% 
+#     tibble::rownames_to_column() %>% 
+#     as_tibble() %>% 
+#     left_join(nn,by = join_by(rowname)) %>% 
+#     filter(!is.na(lab)) %>% 
+#     mutate(model="Final model")
+#   
+#   tt2 = exp(mod2$summary.fixed) %>% 
+#     tibble::rownames_to_column() %>% 
+#     as_tibble() %>% 
+#     left_join(nn,by = join_by(rowname)) %>% 
+#     filter(!is.na(lab),
+#            grepl("lang",rowname))  %>% 
+#     mutate(model="Additional covariates")
+#   
+#   tt3 = exp(mod3$summary.fixed) %>% 
+#     tibble::rownames_to_column() %>% 
+#     as_tibble() %>% 
+#     left_join(nn,by = join_by(rowname)) %>% 
+#     filter(!is.na(lab),
+#            grepl("vote",rowname))  %>% 
+#     mutate(model="Additional covariates")
+#   
+#   tt4 = exp(mod4$summary.fixed) %>% 
+#     tibble::rownames_to_column() %>% 
+#     as_tibble() %>% 
+#     left_join(nn,by = join_by(rowname)) %>% 
+#     filter(!is.na(lab),
+#            grepl("vote",rowname))  %>% 
+#     mutate(model="Additional covariates")
+#   
+#   tt_f = bind_rows(tt,tt2,tt3,tt4)
+#   
+#   type_order = unique(tt_f$type)
+#   tt_f2 = tt_f %>% 
+#     mutate(type2=factor(type,levels=type_order),
+#            model2=factor(model,levels=c("Final model","Additional covariates")))
+#   
+#   g1 = tt_f2 %>% 
+#     ggplot() +
+#     geom_hline(yintercept=1,linetype=2) +
+#     geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`,colour=model2,shape=model2),fill="white") +
+#     labs(y="Relative excess mortality",x=NULL) +
+#     scale_colour_manual(values=c("dodgerblue","orange")) +
+#     # scale_y_log10(limits=c(.9,1.25)) +
+#     scale_shape_manual(values=c(21,22)) +
+#     theme(axis.text.x=element_text(angle=45,hjust=1),
+#           legend.position=c(.89,.8),
+#           legend.background =element_blank(),
+#           strip.text = element_text(size=6.5)) +
+#     facet_grid(~type2,scales="free_x",space="free") +
+#     labs(y="Relative excess mortality",colour=NULL,shape=NULL,alpha=NULL) 
+#   
+#   return(g1)
+# }
+# 
+# drivers_plot2 = function(mod,dat) {
+#   nn = tibble(
+#     rowname=c("density_high","density_low",
+#               "type_rural","type_urban",
+#               "sep1","sep2","sep4","sep5",
+#               "border",
+#               "lang_fr","lang_it",
+#               "vote_jun_q1","vote_jun_q2","vote_jun_q4","vote_jun_q5",
+#               "vote_nov_q1","vote_nov_q2","vote_nov_q4","vote_nov_q5"),
+#     type=c(rep("Pop. density (ref: medium)",2),
+#            rep("Urban or rural (ref: intermediate)",2),
+#            rep("Quintile of SEP (ref: Q3)",4),
+#            rep("Geography"),
+#            rep("Language region (ref: German)",2),
+#            rep("June referendum (ref: Q3)",4),
+#            rep("November referendum (ref: Q3)",4)),
+#     lab=c("High population density","Low population density",
+#           "Rural","Urban",
+#           "SEP Q1","SEP Q2","SEP Q4","SEP Q5",
+#           "International border",
+#           "French","Italian",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5",
+#           "Vote yes Q1","Vote yes Q2","Vote yes Q4","Vote yes Q5"
+#     ))
+#   tt = exp(mod$summary.fixed) %>% 
+#     tibble::rownames_to_column() %>% 
+#     as_tibble() %>% 
+#     left_join(nn,by = join_by(rowname)) %>% 
+#     filter(!is.na(lab))
+#   
+#   g1 = tt %>% 
+#     ggplot() +
+#     geom_pointrange(aes(x=lab,y=mean,ymin=`0.025quant`,ymax=`0.975quant`)) +
+#     geom_hline(yintercept=1,linetype=2) +
+#     labs(y="Relative excess mortality",x=NULL) +
+#     theme(axis.text.x=element_text(angle=45,hjust=1)) +
+#     facet_grid(~type,scales="free_x",space="free") +
+#     labs(x="Relative excess mortality",title="Association with relative excess mortality") 
+#   
+#   return(g1)
+# }
 
 interactions_plot = function(mod,dat) {
   nn = tibble(

@@ -89,23 +89,20 @@ exp_deaths_2020_year = exp_deaths_2020_year %>%
          E=log(ifelse(munici_exp_deaths==0,1e-4,munici_exp_deaths)))
 ```
 
-
 ```{r}
 summary_table(exp_deaths_2020_year) %>% 
   flextable::flextable()
 ```
 
-
 ```{r , fig.width=8, fig.height=7}
 correlogram(exp_deaths_2020_year)
 ```
-
 
 # Models of observed and expected deaths by municipality
 
 ## Step 1: iterative model development
 
-To facilitate model development we startt by only using the median excess mortality by municipality, age group and sex in 2020. 
+To facilitate model development we startt by only using the median excess mortality by municipality, age group and sex in 2020.
 
 ```{r}
 data1 = exp_deaths_2020_year %>% 
@@ -129,14 +126,13 @@ threads = parallel::detectCores()
 
 ### Model 1.0: no covariates
 
-We use a model structure similar to Poisson regression, where $O_{t,i,j,k}$, the number of observed deaths during week $t$ in municipality $i$, age group $j$ and sex group $k$, depends on the number of expected deaths $E_{t,i,j,k}$ based on historical data and a log-linear predictor $\log \lambda = \alpha + \beta X$. 
+We use a model structure similar to Poisson regression, where $O_{t,i,j,k}$, the number of observed deaths during week $t$ in municipality $i$, age group $j$ and sex group $k$, depends on the number of expected deaths $E_{t,i,j,k}$ based on historical data and a log-linear predictor $\log \lambda = \alpha + \beta X$.
 
 $$
 O_i \sim \text{Poisson}(\lambda E_i ) \\
-$$
-At start, $\lambda$ only includes one intercept parameter $\alpha$, so that the estimate of $\exp(\alpha)$ can be interpreted as an average relative excess mortality (that is, the ratio of observed on expected) for 2020. By adding covariates to $\lambda$, we aim to disentangle the various factors that are associated with excess mortality at the local level.
+$$ At start, $\lambda$ only includes one intercept parameter $\alpha$, so that the estimate of $\exp(\alpha)$ can be interpreted as an average relative excess mortality (that is, the ratio of observed on expected) for 2020. By adding covariates to $\lambda$, we aim to disentangle the various factors that are associated with excess mortality at the local level.
 
-We implement this model in R-INLA, a Bayesian inference package that is especially adapted to spatial data. This is achieved in practice by including $\log (E_{i,j,k})$ as an offset (although an alternative formulation based on the `E` argument exists). During model development, we compare different model versions based on the WAIC (lower values imply a better fit). 
+We implement this model in R-INLA, a Bayesian inference package that is especially adapted to spatial data. This is achieved in practice by including $\log (E_{i,j,k})$ as an offset (although an alternative formulation based on the `E` argument exists). During model development, we compare different model versions based on the WAIC (lower values imply a better fit).
 
 ```{r}
 model1.0 = INLA::inla(munici_observed ~ 1 + offset(E),
@@ -175,7 +171,6 @@ exp(model1.1$summary.fixed)[c(1,3,5)]
 model1.1$waic$waic - model1.0$waic$waic 
 ```
 
-
 As expected, the relative excess mortality varies a lot across age and sex groups. It's very small in females aged 40-59 and 60-69 (in fact the data is compatible with no excess in both cases). It increases in females aged 70-79, and even more so aged 80+. It's comparatively higher in males below 80, but somewhat surprisingly lower in males in age group 80+. This still corresponds to basic sanity checks with the data.
 
 ```{r}
@@ -211,7 +206,7 @@ exp(model1.2$summary.fixed)[c(1,3,5)]
 model1.2$waic$waic - model1.1$waic$waic 
 ```
 
-The age and sex effect remains similar, but the model fit as measured by the WAIC is improved now that we account for local differences. 
+The age and sex effect remains similar, but the model fit as measured by the WAIC is improved now that we account for local differences.
 
 ```{r echo=FALSE}
 map_munic(model1.2,data1,shap,interactive=TRUE)
@@ -253,7 +248,7 @@ map_munic(model1.3,data1,shap,interactive=TRUE)
 rank_munic(model1.3,data1,nf=50)
 ```
 
-We observe that many of the municipalities with higher relative excess mortality are in the western and southern parts, the ones that were hit first by COVID-19 in 2020. We also observe areas with higher excess in the North and Northeastern parts. These largely correspond to areas that were hit the most during the first and the second COVID-19 waves of spring and fall 2020 [@konstantinoudis2022regional]. 
+We observe that many of the municipalities with higher relative excess mortality are in the western and southern parts, the ones that were hit first by COVID-19 in 2020. We also observe areas with higher excess in the North and Northeastern parts. These largely correspond to areas that were hit the most during the first and the second COVID-19 waves of spring and fall 2020 [@konstantinoudis2022regional].
 
 ### Model 1.4: local characteristics
 
@@ -261,7 +256,7 @@ Having accounted for regional variability (arguably caused by COVID-19 waves of 
 
 #### Rural/urban
 
-The Federal Statistical Office classifies Swiss municipalities in 3 classes: urban, peri-urban or rural (https://www.bfs.admin.ch/bfs/en/home/statistics/territory-environment/nomenclatures/gemtyp.html). We add this covariate to the model taking the "rural" category as the reference.
+The Federal Statistical Office classifies Swiss municipalities in 3 classes: urban, peri-urban or rural (<https://www.bfs.admin.ch/bfs/en/home/statistics/territory-environment/nomenclatures/gemtyp.html>). We add this covariate to the model taking the "rural" category as the reference.
 
 ```{r}
 model1.4a = INLA::inla(munici_observed ~ - 1 + offset(E) +
@@ -296,7 +291,7 @@ On average, peri-urban and urban municipalities appear to have a lower excess mo
 
 #### Socio-economic position
 
-The Swiss neighbourhood index of socio-economic position provides an estimate of socio-economic position (SEP) based on census data for 1.5 million buildings [@panczak2023swiss]. We consider the median index of each municipality, then group municipalities in quintiles before adding to the model (reference is 5th quintile with highest SEP). 
+The Swiss neighbourhood index of socio-economic position provides an estimate of socio-economic position (SEP) based on census data for 1.5 million buildings [@panczak2023swiss]. We consider the median index of each municipality, then group municipalities in quintiles before adding to the model (reference is 5th quintile with highest SEP).
 
 ```{r}
 model1.4b = INLA::inla(munici_observed ~ - 1 + offset(E) +
@@ -323,11 +318,11 @@ drivers_plot(model1.4b,data1)
 map_munic(model1.4b,data1,shap,interactive=TRUE)
 ```
 
-A gradient appears clearly, so that we can conclude that municipalities of lowest median SEP had a higher relative excess mortality in 2020 compared to municipalities of highest median SEP (5th quintile). 
+A gradient appears clearly, so that we can conclude that municipalities of lowest median SEP had a higher relative excess mortality in 2020 compared to municipalities of highest median SEP (5th quintile).
 
 #### International borders
 
-We now consider whether the municipality belongs to a cross-border labor region (https://www.bfs.admin.ch/bfs/de/home/grundlagen/raumgliederungen.assetdetail.8706500.html). This identifies municipalities with a high level of connectivity with neighboring countries France, Germany and Italy.
+We now consider whether the municipality belongs to a cross-border labor region (<https://www.bfs.admin.ch/bfs/de/home/grundlagen/raumgliederungen.assetdetail.8706500.html>). This identifies municipalities with a high level of connectivity with neighboring countries France, Germany and Italy.
 
 ```{r}
 model1.4c = INLA::inla(munici_observed ~ - 1 + offset(E) +
@@ -354,7 +349,7 @@ drivers_plot(model1.4c,data1)
 map_munic(model1.4c,data1,shap,interactive=TRUE)
 ```
 
-We observe higher relative excess mortality in municipalities in the vicinity of international borders. 
+We observe higher relative excess mortality in municipalities in the vicinity of international borders.
 
 #### Language
 
@@ -393,10 +388,9 @@ map_munic_lang(model1.3,data1,shap,interactive=TRUE)
 
 In this last map, we can make two observations. First, French-speaking and Italian-speaking municipalities are not systematically more affected by excess mortality than German-speaking municipalities, with exceptions like the area around Neuchâtel and the Italian-speaking municipalities of Graubunden. Second, there is a clear separation between the French- and German-speaking municipalities, so that differences could rather be attributed to a lower level of connectivity between populations of different language rather than intrinsic differences favoring SARS-CoV-2 transmission or severity.
 
-
 #### Referendums on COVID-19 measures
 
-We now focus on results from two referendums about COVID-19 control measures held in June and November 2020. The point here is not to look at causality one way or the other, as we look at overall excess for 2020, and the voting took place at two separated points. A preliminary analysis has reported a negative association between the proportion of "yes" vote at the November referendum at the cantonal level and 7-day incidence on December 7, 2021 (https://smw.ch/index.php/smw/announcement/view/50). We classify municipalities according to the proportion of "yes" vote (expressing support of government-issued measures aimed at controlling COVID-19) at each vote, in quintiles (taking the 5th quintile - with highest support - as a reference).
+We now focus on results from two referendums about COVID-19 control measures held in June and November 2020. The point here is not to look at causality one way or the other, as we look at overall excess for 2020, and the voting took place at two separated points. A preliminary analysis has reported a negative association between the proportion of "yes" vote at the November referendum at the cantonal level and 7-day incidence on December 7, 2021 (<https://smw.ch/index.php/smw/announcement/view/50>). We classify municipalities according to the proportion of "yes" vote (expressing support of government-issued measures aimed at controlling COVID-19) at each vote, in quintiles (taking the 5th quintile - with highest support - as a reference).
 
 ```{r}
 model1.4e = INLA::inla(munici_observed ~ - 1 + offset(E) +
@@ -423,8 +417,6 @@ drivers_plot(model1.4e,data1)
 map_munic(model1.4e,data1,shap,interactive=TRUE)
 ```
 
-
-
 ```{r}
 model1.4f = INLA::inla(munici_observed ~ - 1 + offset(E) +
                          sex:age_group +
@@ -450,7 +442,7 @@ drivers_plot(model1.4f,data1)
 map_munic(model1.4f,data1,shap,interactive=TRUE)
 ```
 
-In both cases it appears that excess mortality is consistently about 5% higher in municipalities expressing lowest support to control measures (first quantile) in both referendums, with a clear gradient. 
+In both cases it appears that excess mortality is consistently about 5% higher in municipalities expressing lowest support to control measures (first quantile) in both referendums, with a clear gradient.
 
 ### Multivariable model
 
@@ -493,10 +485,9 @@ save(list=ls(pattern="model1."),data1,
      file = "results_inla/local_corr_models.Rdata")
 ```
 
-
 ## Step 2: multivariate model with full uncertainty propagation
 
-In the previous section we modeled the variation of the median excess mortality over 2020 by municipality. This approach underestimates the uncertainty from two sources, first from the prediction error in the expected mortality at the cantonal level, second from the downscaling to the municipal level. At this stage, we bring back these two sources of uncertainty in the final estimates by repeatedly fitting model 1.5 to 50 different sets of posterior draws of excess mortality by municipality, then combining with equal weights. 
+In the previous section we modeled the variation of the median excess mortality over 2020 by municipality. This approach underestimates the uncertainty from two sources, first from the prediction error in the expected mortality at the cantonal level, second from the downscaling to the municipal level. At this stage, we bring back these two sources of uncertainty in the final estimates by repeatedly fitting model 1.5 to 50 different sets of posterior draws of excess mortality by municipality, then combining with equal weights.
 
 ```{r}
 model1.5_merg = readRDS("results_inla/model1.5_merg.rds")
@@ -512,4 +503,6 @@ map_munic(model1.5_merg,data1,shap,interactive=TRUE,compute_cri = TRUE)
 ```
 
 As expected, this approach leads to a dilution of the observed associations between relative excess mortality and local covariates. We still observe a linear gradient in the association between excess mortality and median SEP at the municipal level in age groups 40 to 79, and a likely association between excess mortality and border municipalities, although in both cases with higher uncertainty. We also observe similar patterns in the residual effects at the level of the municipality, again with higher uncertainty.
+
+# References
 
