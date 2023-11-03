@@ -49,7 +49,7 @@ The COVID-19 related excess mortality in Switzerland is well documented, but no 
 Excess all-cause mortality is central to assessing the impact of the COVID-19 pandemic. 
 Its estimation relies on predicting the expected number of deaths in a given population from historical data.
 Multiple approaches have been proposed, with varying levels of complexity, length of training data, assumptions regarding population sizes, and groups of stratification. 
-In previous work the level of spatial granularity has varied, from country down to the municipal level,[@brandily2021poorly][@blangiardo2020estimating][@acosta2022all][@bertoli2020turnout], with some studies exploring associations between excess mortality and area characteristics.[@brandily2021poorly][@bertoli2020turnout]. 
+In previous work the level of spatial granularity has varied, from country down to the municipal level,[@brandily2021poorly][@blangiardo2020estimating][@acosta2022all][@bertoli2020turnout], with some studies exploring associations between excess mortality and area characteristics.[@brandily2021poorly][@bertoli2020turnout]
 We estimated excess mortality at the municipal level for the year 2020 in Switzerland and explored associations with characteristics of municipalities, such as level of urbanisation, vicinity of international borders, socioeconomic position and voting behavior in a referendum on COVID-19 control measures. 
 
 # Methods

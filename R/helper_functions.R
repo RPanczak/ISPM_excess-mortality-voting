@@ -155,6 +155,47 @@ map_munic_final = function(mod,dat,shape,fillname="Relative excess\nmortality") 
   return(g1)
 }
 
+map_munic_raw = function(dat,shape,denom=NULL,fillname="Relative excess\nmortality") {
+  cc = dat %>% 
+    group_by(GMDNR) %>% 
+    summarise(munici_observed=sum(munici_observed),
+              munici_excess=sum(munici_excess),
+              munici_exp_deaths=sum(munici_exp_deaths),
+              munici_pop=sum(munici_pop)) %>%  
+    dplyr::distinct()
+  tt2 = shape$tg3o %>% 
+    select(GMDNR) %>% 
+    right_join(cc,by = join_by(GMDNR)) %>% 
+    mutate(pop=munici_excess/munici_pop,
+           rel=munici_observed/munici_exp_deaths)
+  
+  if(is.null(denom)) {
+    g1 = ggplot() +
+      geom_sf(data=shape$kt,fill="grey95",colour="grey70") +
+      geom_sf(data=tt2,aes(fill=munici_excess),colour="transparent") +
+      scale_fill_viridis_c(trans=pseudo_log_trans()) +
+      labs(title=NULL,fill=fillname)
+  } else {
+    if(denom=="pop") {
+      g1 = ggplot() +
+        geom_sf(data=shape$kt,fill="grey95",colour="grey70") +
+        geom_sf(data=tt2,aes(fill=pop),colour="transparent") +
+        scale_fill_viridis_c(labels=scales::percent) +
+        labs(title=NULL,fill=fillname)
+    }
+    if(denom=="expected") {
+      g1 = ggplot() +
+        geom_sf(data=shape$kt,fill="grey95",colour="grey70") +
+        geom_sf(data=tt2,aes(fill=rel),colour="transparent") +
+        scale_fill_viridis_c() +
+        labs(title=NULL,fill=fillname)
+    }
+  }
+  
+  
+  return(g1)
+}
+
 map_munic_lang = function(mod,dat,shape,interactive=FALSE) {
   cc = dat %>% 
     dplyr::select(canton,GMDNR,GMDNAME,id_space,lang_fr,lang_it) %>% 

@@ -102,7 +102,7 @@ correlogram(exp_deaths_2020_year)
 
 ## Step 1: iterative model development
 
-To facilitate model development we startt by only using the median excess mortality by municipality, age group and sex in 2020.
+To facilitate model development we start by only using the median excess mortality by municipality, age group and sex in 2020.
 
 ```{r}
 data1 = exp_deaths_2020_year %>% 
@@ -113,7 +113,16 @@ data1 = exp_deaths_2020_year %>%
             munici_excess=median(munici_excess)) %>% 
   mutate(E=log(ifelse(munici_exp_deaths==0,1e-4,munici_exp_deaths))) %>% 
   ungroup()
+data2 = exp_deaths_2020_year %>% 
+  group_by(canton, GMDNR, GMDNAME, age_group, id_space, sex, munici_observed, munici_pop,
+           density_high, density_low, across(starts_with("sep")), border, lang_fr, lang_it,
+           across(starts_with("vote")),type_urban,type_rural,type_periurban) %>% 
+  summarise(munici_exp_deaths=mean(munici_exp_deaths),
+            munici_excess=mean(munici_excess)) %>% 
+  mutate(E=log(ifelse(munici_exp_deaths==0,1e-4,munici_exp_deaths))) %>% 
+  ungroup()
 rm(exp_deaths_2020_year)
+
 # gc()
 ```
 
@@ -130,7 +139,8 @@ We use a model structure similar to Poisson regression, where $O_{t,i,j,k}$, the
 
 $$
 O_i \sim \text{Poisson}(\lambda E_i ) \\
-$$ At start, $\lambda$ only includes one intercept parameter $\alpha$, so that the estimate of $\exp(\alpha)$ can be interpreted as an average relative excess mortality (that is, the ratio of observed on expected) for 2020. By adding covariates to $\lambda$, we aim to disentangle the various factors that are associated with excess mortality at the local level.
+$$ 
+At start, $\lambda$ only includes one intercept parameter $\alpha$, so that the estimate of $\exp(\alpha)$ can be interpreted as an average relative excess mortality (that is, the ratio of observed on expected) for 2020. By adding covariates to $\lambda$, we aim to disentangle the various factors that are associated with excess mortality at the local level.
 
 We implement this model in R-INLA, a Bayesian inference package that is especially adapted to spatial data. This is achieved in practice by including $\log (E_{i,j,k})$ as an offset (although an alternative formulation based on the `E` argument exists). During model development, we compare different model versions based on the WAIC (lower values imply a better fit).
 
@@ -505,4 +515,3 @@ map_munic(model1.5_merg,data1,shap,interactive=TRUE,compute_cri = TRUE)
 As expected, this approach leads to a dilution of the observed associations between relative excess mortality and local covariates. We still observe a linear gradient in the association between excess mortality and median SEP at the municipal level in age groups 40 to 79, and a likely association between excess mortality and border municipalities, although in both cases with higher uncertainty. We also observe similar patterns in the residual effects at the level of the municipality, again with higher uncertainty.
 
 # References
-
