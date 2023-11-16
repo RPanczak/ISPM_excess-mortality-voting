@@ -148,7 +148,8 @@ map_munic_final = function(mod,dat,shape,fillname="Relative excess\nmortality") 
   g1 = ggplot() +
     geom_sf(data=shape$kt,fill="grey95",colour="grey70") +
     geom_sf(data=tt2,aes(fill=munic_effect),colour="transparent") +
-    scale_fill_viridis_c(limits=c(.89,1.14)) +
+    scale_fill_viridis_c(limits=c(.89,1.14), direction = -1) +
+    # scale_fill_viridis_c(limits=c(1.14,.89)) +
     labs(title=NULL,fill=fillname)
   
   
