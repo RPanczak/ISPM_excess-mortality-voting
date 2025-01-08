@@ -1,0 +1,112 @@
+---
+title: "Area-level excess mortality in times of COVID-19 in Switzerland: geographical, socioeconomic and political determinants"
+author: "Julien Riou, Radoslaw Panczak, Garyfallos Konstantinoudis, Matthias Egger"
+date: "`r Sys.Date()`"
+output: word_document
+bibliography: bib.bib  
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+
+```{r setup, include = FALSE}
+pacman::p_load(tidyverse, 
+               scales,
+               hrbrthemes, 
+               sf, 
+               INLA)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+theme_set(theme_bw())
+```
+
+```{r , echo=FALSE}
+kt = read_rds("data/BfS/kt.Rds")
+tg3o = read_rds("data/BfS/tg3o.Rds")
+shap = list(kt=kt,tg3o=tg3o)
+```
+
+
+# Abstract
+
+The COVID-19 related excess mortality in Switzerland is well documented, but no study examined mortality at the small-area level. We analysed excess mortality in 2020 for 2,141 Swiss municipalities using a Bayesian spatiotemporal model fitted to 2011-2019 data. Areas most affected included the Ticino, the Romandie and the Northeast. Rural areas, municipalities within cross-border labour markets, of lower socioeconomic position and with less support for control measures in the popular vote on the COVID-19 Act had greater excess mortality. Particularly vulnerable municipalities require special efforts to mitigate the impact of pandemics.
+
+
+# Key points
+
+-	Small-area excess mortality varied substantially in Switzerland in 2020, depending on the geographical location and type of municipality.
+
+-	Areas most affected included the Ticino, the Lake of Geneva region, the Jura and the Northeast of the country. 
+
+-	Rural municipalities, municipalities of lower socioeconomic position and showing lower support for COVID-19 control measures experienced higher excess mortality. 
+
+-	Public health interventions targeted at vulnerable municipalities, including testing and vaccination campaigns, could mitigate the impact in these areas in future pandemics. 
+
+
+# Introduction
+
+Excess all-cause mortality is central to assessing the impact of the COVID-19 pandemic. 
+Its estimation relies on predicting the expected number of deaths in a given population from historical data.
+In previous work, the level of spatial granularity has varied,  from country to the municipal level,[@riou2023direct][@konstantinoudis2022regional][@blangiardo2020estimating] with few studies exploring associations between excess mortality and area characteristics.[@brandily2021poorly][@bertoli2020turnout]
+We estimated excess mortality at the municipal level for the year 2020 in Switzerland and explored associations with characteristics of municipalities, such as level of urbanisation, cross-border labour market, socioeconomic position and voting behavior in a referendum on COVID-19 control measures. 
+
+# Methods
+
+We obtained data on all-cause deaths for the years 2011–2020 from the Federal Statistical Office (FSO), aggregated by week, canton (26 levels), age group (40–59, 60–69, 70–79 and 80 and older) and sex.[@konstantinoudis2022regional]
+Data on ambient temperature were obtained from the ERA5 reanalysis data set of the Copernicus climate data.
+
+We predicted the expected number of deaths for each week by canton, age group and sex using a Bayesian spatiotemporal model fitted to data from 2011-2019 as described in detail elsewhere.[@riou2023direct]
+The model accounted for long-term, seasonal and spatial trends in mortality, ambient temperature, public holidays and changes in population size.
+Next, we aggregated the results from week to year. Last, we downscaled the expected number of deaths from the cantonal to the 2,141 Swiss municipalities by randomly sampling from a multinomial distribution with weights corresponding to the observed distribution of deaths. We then computed the yearly absolute excess mortality by age, sex and municipality by subtracting the expected from the observed number of deaths. We averaged results over 50 posterior samples of municipality-level excess mortality.
+
+We explored associations with relative excess mortality using a model where $O_{t,i,j,k}$, the absolute number of observed deaths during week $t$ in municipality $i$, age group $j$ and sex group $k$, depends on the absolute number of expected deaths $E_{t,i,j,k}$ based on historical data multiplied by a log-linear predictor $\lambda = \exp(\alpha + X\beta)$ (with intercept $\alpha$, design matrix $X$ and parameter vector $\beta$).
+We followed an iterative approach by progressively adding complexity to $\lambda$ (Supplementary material). 
+The models included intercepts for age and sex groups and the spatial autocorrelation across municipalities.
+Covariates included language region (German, Italian or French), urbanisation level[@fsospatial] (rural, peri-urban, urban), location within a cross-border labour market area[@fsolabour] (binary), socioeconomic position (quintiles of the median Swiss neighbourhood index, which is based on rent, household head education and occupation, and crowding[@panczak2023swiss]), and results from the June 2021 referendum on the COVID-19 Act[@referendums] (quintiles of proportion of votes supporting control measures). 
+
+# Results
+
+```{r, echo=FALSE}
+source("R/helper_functions.R")
+load("results_inla_v2/local_corr_models.Rdata")
+model1.5_merg = readRDS("results_inla_v2/model1.5_merg.rds")
+range_pop_obs = data1 %>% 
+  group_by(GMDNAME) %>% 
+  summarise(munici_pop=sum(munici_pop),munici_observed=sum(munici_observed))
+```
+
+We observed 74,776 deaths in people aged 40 and older in 2020, compared to an expected 55,676 deaths (95% credible interval: 53,865 to 57,821), for a relative increase in excess mortality of 34% (29% to 39%). 
+The population and observed deaths in municipalities ranged from 19 to 197,879, and 0 to 3,507, respectively.
+Excess mortality varied across age and sex, with higher relative  excess in older age groups and men (Supplementary material).
+Areas most affected included Ticino (south, Italian-speaking), the Lake Geneva region (south-west, French-speaking) and the Northeast (cantons of St Gall, Thurgau (north-east, German-speaking). Some municipalities in the north-west stand out compared to their surroundings. Cities in the German-speaking area (Zurich, Basel and Bern) and mountainous regions of the Grison were less affected than other cities and areas (Figure 1A, Supplementary material).  
+
+In univariable analysis, municipalities in Italian- (1.17; 95% credible interval [CrI] 1.12-1.22) and French-speaking regions (1.09; 95% CrI 1.07-1.12) had higher excess mortality than the German-speaking regions (Figure 1B). Urban (relative excess mortality 0.94; 95% CrI 0.92-0.96), and peri-urban (0.97; 95% CrI 0.94-0.99) areas had lower excess than rural areas whereas municipalities within cross-border labour market areas were more affected (1.04; 95% CrI 1.01-1.07). Excess mortality was higher in municipalities of lower socioeconomic position (1.07; 95% CrI 1.04-1.11 comparing first with fifth quintile) and higher in municipalities with less support for COVID-19 control measures (1.05; 95% CrI 1.01-1.08 comparing first with fifth quintile of yes votes). 
+
+A multivariable model including urbanisation, location within cross-border labour market area, socioeconomic position and the COVID-19 referendum results was used to produce a map of relative excess mortality adjusted for these variables (Figure 1C). In addition to the patterns seen on the crude map, the adjusted map included an area of somewhat higher excess mortality in the Northeast of the country.
+
+
+```{r, echo=FALSE, fig.height=12.5,fig.width=9.5,fig.cap="(A) Municipality-specific relative excess mortality in 2020. (B) Local correlates of excess mortality at the municipality level in 2020. (C) Municipality-specific relative excess mortality in 2020 adjusted for aforementioned covariates."}
+g0 = map_munic_final(model1.3,data1,shap)
+g1 = map_munic_final(model1.5,data1,shap,fillname="Adjusted relative\nexcess mortality")
+# g2 = drivers_plot(model1.5,data1,compute_cri = TRUE)
+g2 =  drivers_plot_final(model1.4a,model1.4b,model1.4c,model1.4e,model1.5,data1)
+cowplot::plot_grid(g0,g2,g1,labels=c("A","B","C"), nrow=3, rel_heights = c(1,.8,1))
+ggsave(file="manuscripts/ejph_correction/fig1.pdf",height=12.5,width=9.5)
+```
+
+# Discussion
+
+This study examined the 2020 COVID-19 excess mortality in Switzerland for 2,141 municipalities, allowing for a more detailed mapping of excess mortality than a previous analysis at the cantonal level[@konstantinoudis2022regional]. Furthermore, we identified several municipality-level characteristics that were associated with excess mortality. Urban and peri-urban municipalities were less affected than rural areas, and municipalities within cross-border labour market areas or of lower socioeconomic position also experienced higher excess mortality. 
+
+The association with municipalities’ support for COVID-19 control measures, based on the results of the June 2021 referendum, is a unique finding of this study.  In Switzerland’s direct democracy, citizens can initiate referenda on various issues. During the pandemic, there were vigorous debates on COVID-19 restrictions, such as lockdowns, mask mandates, and vaccination campaigns. The COVID-19 Act,[@referendums] which came into force in September 2020 and regulates special powers of the federal government to combat COVID-19, was put to a referendum in June 2021. The Swiss thus became the only people in the world voting on public health measures to control COVID-19. The Act was accepted overall with a majority of 60%, but support for the COVID-19 control measures was lower in rural areas and municipalities of lower socioeconomic position. 
+
+The ecological nature of the explanatory variables analysed and the collinearity between some of these variables precludes causal interpretation. Nevertheless, the higher excess mortality in municipalities of lower socioeconomic position is supported by an individual-level analysis of the COVID-19 epidemic in Switzerland 2020-2021, which showed that people living in areas of lower socioeconomic position were less likely to get tested but more likely to test positive for COVID-19, admitted to hospital and die compared with those living in areas of higher socioeconomic position [@riou2021socioeconomic]. The association became stronger along the care continuum, from test positivity to hospitalisation and death. The greater excess mortality in areas of lower socioeconomic position and rural areas might reflect higher risks of SARS-CoV-2 infection at work and home, with more unprotected contact with others. The more negative attitude towards COVID-19 control measures may also have played a role. 
+
+The international spread of COVID-19 will have affected the geographical patterns observed in our study. The early epidemic in northern Italy and then France led to introductions in south and south-west Switzerland, which probably explains the higher excess mortality in the Italian- and French-speaking regions compared to German-speaking Switzerland.[@konstantinoudis2022regional] Cultural differences between the language regions, which some commentators and media outlets put forward at the time, probably played a comparatively minor role. 
+
+Strengths of this study include the national coverage and completeness of the mortality data. Another strength is the analysis of data on the support for COVID-19 control measures and of the recently updated Swiss neighbourhood index of socioeconomic position, which has criterion validity and is based on data from more than 1 million households.[@panczak2023swiss] In conclusion, public health interventions targeted at vulnerable municipalities, including testing and vaccination campaigns, could mitigate the impact in these areas in future pandemics.
+
+# Acknowledgements
+
+Julien Riou was supported by the Swiss Federal Office of Public Health (contract 142005806). Radoslaw Panczak and Julien Riou were supported by Swiss National Science Foundation grant 32FP30-189498 awarded to Matthias Egger. Garyfallos Konstantinoudis was supported by an MRC Skills Development Fellowship [MR/T025352/1] and an Imperial College Research Fellowship.
+
+# References

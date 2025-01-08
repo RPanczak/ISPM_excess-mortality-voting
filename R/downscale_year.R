@@ -1,14 +1,23 @@
 # sample data 
-# canton_data = exp_deaths_2020_kt %>%
-#   filter(it <= 100)
-# munici_data = w_deaths_2020_year_fin
+ # canton_data = exp_deaths_2020_kt %>%
+ #   filter(it <= 100)
+ # munici_data = x2
 
 downscale_year = function(canton_data, munici_data) {
   
   # left_join
   mm = munici_data %>%
     tidyr::expand_grid(it = unique(canton_data$it)) %>%
-    dplyr::left_join(canton_data, by = c("canton", "age_group", "sex", "it"))
+    dplyr::left_join(canton_data, by = c("canton", "age_group", "sex", "it")) %>% 
+    dplyr::arrange(it,canton,GMDNR,age_group,sex)
+  
+  if(FALSE) {
+    mm %>% 
+      filter(it==1) %>% 
+      group_by(canton,age_group,sex) %>% 
+      summarise(exp=max(exp_deaths), .groups="drop") %>% 
+      summarise(exp=sum(exp))
+  }
   
   # compute downscale factor p
   # ie. proportion of canton deaths within strata and community (mind the iteration)
@@ -39,12 +48,25 @@ downscale_year = function(canton_data, munici_data) {
     tidyr::replace_na(list(munici_exp_deaths = 0)) %>%
     dplyr::mutate(munici_excess = observed - munici_exp_deaths)
   
+  if(FALSE) {
+    ee %>% 
+      filter(it==1) %>% 
+      group_by(canton,age_group,sex) %>% 
+      summarise(exp=sum(munici_exp_deaths), .groups="drop") %>% 
+      summarise(exp=sum(exp))
+    ee %>% 
+      filter(it==1) %>% 
+      group_by(canton,age_group,sex) %>% 
+      summarise(exp=sum(observed), .groups="drop") %>% 
+      summarise(exp=sum(exp))
+  }
+  
   return(ee)
 }
 
 if (FALSE) {
   dd %>%
-    filter(
+    dplyr::filter(
       canton == "BE",
       age_group == "80+",
       sex == "Female",

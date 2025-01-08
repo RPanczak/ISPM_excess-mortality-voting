@@ -1,0 +1,283 @@
+---
+title: "2020 excess mortality & voting patterns in CH"
+subtitle: "Redistributed cantonal deaths"
+author: "Radek Panczak"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    code_folding: show
+    self_contained: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
+---
+
+<!-- ----------------------------------------------------- -->
+
+```{r setup, include = FALSE}
+set.seed(12345)
+options(scipen = 999)
+options(max.print = "75")
+
+library(pacman)
+p_load(tidyverse, magrittr, skimr, scales,
+       hrbrthemes, 
+       sf, tmap,
+       osfr)
+
+import::from("sjmisc", "frq")
+```
+
+```{r conflicts, include = FALSE}
+tidyverse::tidyverse_conflicts()
+
+conflicted::conflict_scout()
+```
+
+```{r knit-setup, include = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(cache = FALSE,
+                      prompt = FALSE,
+                      tidy = FALSE,
+                      comment = NA,
+                      message = FALSE,
+                      warning = FALSE)
+
+knitr::opts_knit$set(width = 75)
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Data 
+
+## Canton 
+
+Expected deaths by age X sex X canton in 2020 from [Riou *et al.*](https://www.medrxiv.org/content/10.1101/2022.08.05.22278458v1), now published as [Riou *et al.*](https://pubmed.ncbi.nlm.nih.gov/36609356/). We correct the previous mistake by taking the expected deaths by age, sex and canton for the whole of 2020, not just from February 24th, 2020 to December 31st, 2020.
+
+```{r include=FALSE}
+exp_deaths_2020_kt = read_rds("data/canton/exp_deaths_2020_kt_v2.rds") %>% select(-year)
+
+canton_abbreviations <- c(
+  "AG" = "AG", "Appenzell Ausserrhoden" = "AR", "Appenzell Innerrhoden" = "AI", 
+  "Basel-Landschaft" = "BL", "Basel-Stadt" = "BS", "Bern / Berne" = "BE", 
+  "Fribourg / Freiburg" = "FR", "Genève" = "GE", "Glarus" = "GL", 
+  "Graubünden / Grigioni / Grischun" = "GR", "Jura" = "JU", "Luzern" = "LU", 
+  "Neuchâtel" = "NE", "Nidwalden" = "NW", "Obwalden" = "OW", 
+  "Schaffhausen" = "SH", "Schwyz" = "SZ", "Solothurn" = "SO", 
+  "St. Gallen" = "SG", "Thurgau" = "TG", "Ticino" = "TI", "Uri" = "UR", 
+  "Valais / Wallis" = "VS", "Vaud" = "VD", "Zug" = "ZG", "Zürich" = "ZH"
+)
+exp_deaths_2020_kt = exp_deaths_2020_kt %>%
+  mutate(canton = recode(canton, !!!canton_abbreviations))
+
+```
+
+Example of one iteration  
+
+```{r eval=FALSE, include=FALSE}
+exp_deaths_2020_kt %>% 
+  filter(it == 1) %>% 
+  filter(age_group != "<40") %>% 
+  summarise(exp=sum(exp_deaths),obs=sum(observed2))
+```
+
+The median total expected deaths for the entire year is now 64,406 (instead of 55,676 before the correction).
+
+```{r}
+exp_deaths_2020_kt %>% 
+  filter(age_group != "<40") %>% 
+  group_by(it) %>% 
+  summarise(exp=sum(exp_deaths), .group="drop") %>% 
+  summarise(`Expected (median)`=round(median(exp)),
+            `Expected (lower bound)`=round(quantile(exp,0.025)),
+            `Expected (upper bound)`=round(quantile(exp,0.975)),.groups="drop" )
+```
+
+
+## Municipality 
+
+Load municipality level data.
+
+```{r}
+x = read_rds("results/exp_deaths_2020_year.Rds")
+x2 = x %>%  
+  filter(it==1) %>% 
+  group_by(canton, GMDNR, age_group, sex) %>% 
+  summarise(observed = sum(munici_observed ),
+            pop_mid_poi = sum(munici_pop),
+            .groups="drop")
+```
+
+```{r echo=FALSE}
+x %>% 
+  skim()
+```
+
+## Spatial 
+
+```{r}
+gg = read_rds("data/BfS/gg.Rds")
+```
+
+## Downscale function 
+
+@jriou method to downscale cantonal deaths to municipality level.  
+
+```{r}
+source("R/downscale_year.R")
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Downscale 
+
+```{r}
+exp_deaths_2020_year = downscale_year(exp_deaths_2020_kt, x2) %>% 
+  rename(
+    munici_pop = pop_mid_poi,
+    munici_observed = observed,
+    cant_exp_deaths = exp_deaths,
+    cant_observed = observed2) 
+```
+
+Again, result contains iterations of diff results  
+
+```{r}
+max(exp_deaths_2020_year$it)
+```
+
+Example of one iteration  
+
+```{r echo=FALSE}
+exp_deaths_2020_year %>% 
+  filter(it == 1) %>% 
+  select(obs=5,exp=11) %>%
+  summarize(exp=sum(exp),obs=sum(obs)) 
+```
+
+Over all iterations:
+
+```{r}
+exp_deaths_2020_year %>% 
+  group_by(it) %>% 
+  summarise(exp=sum(munici_exp_deaths), obs=sum(munici_observed),.group="drop") %>% 
+  summarise(Observed=median(obs),
+            `Expected (median)`=round(median(exp)),
+            `Expected (lower bound)`=round(quantile(exp,0.025)),
+            `Expected (upper bound)`=round(quantile(exp,0.975)),.groups="drop" )
+```
+
+```{r include=FALSE}
+rm(exp_deaths_2020_kt, w_deaths_2020_year_fin, downscale_year); gc()
+```
+
+<!-- ----------------------------------------------------- -->
+
+# Preps
+
+## Aggregates 
+
+Iterations collapsed for each municipality strata.  
+
+```{r}
+exp_deaths_2020_year_agg = exp_deaths_2020_year %>% 
+  group_by(canton, GMDNR, age_group, sex) %>% 
+  summarise(
+    # observed
+    munici_observed = first(munici_observed),
+    munici_pop = first(munici_pop),
+    # modelled x1000
+    # expected
+    munici_expected_lo = quantile(munici_exp_deaths, 0.025),
+    munici_expected_med = quantile(munici_exp_deaths, 0.5),
+    munici_expected_up = quantile(munici_exp_deaths, 0.975),
+    # excess
+    munici_excess_lo = quantile(munici_excess, 0.025),
+    munici_excess_med = quantile(munici_excess, 0.5),
+    munici_excess_up = quantile(munici_excess, 0.975)
+  ) %>% 
+  ungroup()
+```
+
+Even simpler aggregation to municipality level, ignoring age & sex strata.  
+
+```{r}
+exp_deaths_2020_year_gem = exp_deaths_2020_year_agg %>% 
+  group_by(canton, GMDNR) %>% 
+  summarise(
+    # community level totals
+    munici_pop = sum(munici_pop),
+    munici_observed = sum(munici_observed),
+    munici_expected_med = sum(munici_expected_med),
+    munici_excess_med = sum(munici_excess_med)
+  ) %>% 
+  ungroup() %>% 
+  # ratio and per pop
+  mutate(munici_excess_rat = munici_excess_med / munici_expected_med,
+         munici_excess_pop =  (munici_excess_med / munici_pop) * 1000) 
+```
+
+Special situation arises in this aggregation when calculating a *ratio of excess deaths to observed* deaths. There are communities where expected number of deaths is zero. That leads to ratio being `Inf` in cases where excess is > 0 and to `NaN` where excess is (also) == 0.  
+
+```{r echo=FALSE}
+# frq(exp_deaths_2020_year_gem, munici_expected_med == 0 & munici_excess_med != 0)
+# frq(exp_deaths_2020_year_gem, munici_expected_med == 0 & munici_excess_med == 0)
+frq(exp_deaths_2020_year_gem, munici_expected_med == 0)
+```
+
+These communities" ratios were recoded to `NA`.  
+
+```{r include=FALSE}
+exp_deaths_2020_year_gem %<>% 
+  mutate(munici_excess_rat = ifelse(munici_expected_med == 0, NA, munici_excess_rat))
+```
+
+## Bring covariates 
+
+```{r}
+covs1 = read_rds("results/exp_deaths_2020_year.Rds")
+
+covs1 = covs1 %>% 
+  dplyr::arrange(it,canton,GMDNR,age_group,sex) %>% 
+  dplyr::select(GMDNAME,id_space,15:28)
+exp_deaths_2020_year_v2 = exp_deaths_2020_year %>% 
+  dplyr::arrange(it,canton,GMDNR,age_group,sex) %>% 
+  dplyr::bind_cols(covs1)
+
+covs2 = read_rds("results/exp_deaths_2020_year_agg.Rds")
+covs2 = covs2 %>% 
+  dplyr::arrange(canton,GMDNR,age_group,sex) %>% 
+  dplyr::select(canton,GMDNR,GMDNAME,age_group,sex,14:26)
+exp_deaths_2020_year_agg_v2 = exp_deaths_2020_year_agg %>% 
+  dplyr::arrange(canton,GMDNR,age_group,sex) %>% 
+  dplyr::left_join(covs2)
+
+covs3 = read_rds("results/exp_deaths_2020_year_gem.Rds")
+covs3 = covs3 %>% 
+  dplyr::arrange(canton,GMDNR) %>% 
+  dplyr::select(canton,GMDNR,GMDNAME,10:22)
+exp_deaths_2020_year_gem_v2 = exp_deaths_2020_year_gem %>% 
+  dplyr::arrange(canton,GMDNR) %>% 
+  dplyr::left_join(covs3)
+```
+
+```{r include=FALSE}
+exp_deaths_2020_year_agg_v2 %<>% 
+  filter(!is.na(vote_yes_jun_cat))
+
+exp_deaths_2020_year_gem_v2 %<>% 
+  filter(!is.na(vote_yes_jun_cat))
+
+exp_deaths_2020_year_agg_v2 %<>% 
+  filter(!is.na(vote_yes_nov_cat)) 
+
+exp_deaths_2020_year_gem_v2 %<>% 
+  filter(!is.na(vote_yes_nov_cat))
+
+write_rds(exp_deaths_2020_year_v2, "results_v2/exp_deaths_2020_year.Rds")
+write_rds(exp_deaths_2020_year_agg_v2, "results_v2/exp_deaths_2020_year_agg.Rds")
+write_rds(exp_deaths_2020_year_gem_v2, "results_v2/exp_deaths_2020_year_gem.Rds")
+```
